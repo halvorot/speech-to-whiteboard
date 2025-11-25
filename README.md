@@ -2,7 +2,9 @@
 
 Real-time collaborative whiteboard controlled by voice commands.
 
-![Demo](docs/screen-recording-db-server-client-diagram.gif)
+![Demo](docs/screen-recording-db-server-client-diagram-short.gif)
+
+See the full screen recording [here](docs/screen-recording-db-server-client-diagram.mov)
 
 ## Current Status: Stage 3 Complete ✅
 
