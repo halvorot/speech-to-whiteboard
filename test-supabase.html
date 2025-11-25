@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Supabase Connection</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Supabase Connection Test</h1>
+    <div id="output"></div>
+
+    <script>
+        const output = document.getElementById('output');
+
+        const supabaseUrl = 'http://127.0.0.1:54321';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
+
+        const { createClient } = window.supabase;
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        async function test() {
+            output.innerHTML += '<p>Testing connection...</p>';
+
+            // Test 1: Sign up
+            output.innerHTML += '<p><strong>Test 1: Sign Up</strong></p>';
+            const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+                email: 'test@example.com',
+                password: 'password123'
+            });
+
+            if (signUpError) {
+                output.innerHTML += `<p style="color: red;">Sign up error: ${signUpError.message}</p>`;
+            } else {
+                output.innerHTML += `<p style="color: green;">Sign up success! User: ${signUpData.user?.email}</p>`;
+            }
+
+            // Test 2: Sign in
+            output.innerHTML += '<p><strong>Test 2: Sign In</strong></p>';
+            const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+                email: 'test@example.com',
+                password: 'password123'
+            });
+
+            if (signInError) {
+                output.innerHTML += `<p style="color: red;">Sign in error: ${signInError.message}</p>`;
+            } else {
+                output.innerHTML += `<p style="color: green;">Sign in success! User: ${signInData.user?.email}</p>`;
+                output.innerHTML += `<p>Access token: ${signInData.session?.access_token?.substring(0, 20)}...</p>`;
+            }
+        }
+
+        test();
+    </script>
+</body>
+</html>

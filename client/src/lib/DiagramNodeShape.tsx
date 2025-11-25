@@ -1,0 +1,187 @@
+import {
+  BaseBoxShapeUtil,
+  HTMLContainer,
+  Rectangle2d,
+  type TLBaseShape,
+  type TLDefaultColorStyle,
+} from 'tldraw';
+import type { NodeType } from '../types/sketch';
+
+// Icon SVG library
+const ICONS: Record<NodeType, string> = {
+  // Tech icons
+  database: `<svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.657 4.03 3 9 3s9-1.343 9-3V5"/><path d="M3 11v6c0 1.657 4.03 3 9 3s9-1.343 9-3v-6"/></svg>`,
+  server: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01M6 18h.01"/></svg>`,
+  client: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>`,
+  storage: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="7.5 4.21 12 6.81 16.5 4.21"/><polyline points="7.5 19.79 7.5 14.6 3 12"/><polyline points="21 12 16.5 14.6 16.5 19.79"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`,
+  network: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg>`,
+
+  // General purpose icons
+  box: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>`,
+  circle: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>`,
+  cloud: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>`,
+  diamond: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 12l10 10 10-10L12 2z"/></svg>`,
+  hexagon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>`,
+  person: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+  process: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"/></svg>`,
+  data: `<svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.657 4.03 3 9 3s9-1.343 9-3V5"/></svg>`,
+  unknown: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+};
+
+// Semantic color groupings
+// Infrastructure (blue family): servers, clients, network, cloud
+// Data (green family): databases, storage, data sources
+// People (purple family): people, roles, actors
+// Processes (orange family): workflows, operations, transformations
+// Decisions (yellow family): conditionals, gateways
+const NODE_COLORS: Record<NodeType, TLDefaultColorStyle> = {
+  // Infrastructure - Blue family
+  server: 'blue',
+  client: 'light-blue',
+  network: 'light-violet',
+  cloud: 'light-blue',
+  box: 'blue',
+
+  // Data - Green family
+  database: 'green',
+  storage: 'light-green',
+  data: 'light-green',
+
+  // People - Purple family
+  person: 'violet',
+
+  // Processes - Orange family
+  process: 'orange',
+  hexagon: 'light-red',
+
+  // Decisions - Yellow family
+  diamond: 'yellow',
+
+  // Generic
+  circle: 'grey',
+  unknown: 'grey',
+};
+
+// Shape type definition
+export type DiagramNodeShape = TLBaseShape<
+  'diagram-node',
+  {
+    w: number;
+    h: number;
+    color: TLDefaultColorStyle;
+    nodeType: NodeType;
+    label: string;
+    description: string;
+  }
+>;
+
+// Shape util class
+export class DiagramNodeUtil extends BaseBoxShapeUtil<DiagramNodeShape> {
+  static override type = 'diagram-node' as const;
+
+  getDefaultProps(): DiagramNodeShape['props'] {
+    return {
+      w: 200,
+      h: 120,
+      color: 'grey',
+      nodeType: 'box',
+      label: 'Node',
+      description: '',
+    };
+  }
+
+  getGeometry(shape: DiagramNodeShape) {
+    return new Rectangle2d({
+      width: shape.props.w,
+      height: shape.props.h,
+      isFilled: true,
+    });
+  }
+
+  component(shape: DiagramNodeShape) {
+    const { w, h, color, nodeType, label, description } = shape.props;
+    const icon = ICONS[nodeType] || ICONS.unknown;
+
+    return (
+      <HTMLContainer
+        id={shape.id}
+        style={{
+          width: w,
+          height: h,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: `var(--color-${color})`,
+          border: `2px solid var(--color-${color}-text)`,
+          borderRadius: '8px',
+          padding: '12px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          pointerEvents: 'all',
+        }}
+      >
+        {/* Icon */}
+        <div
+          style={{
+            width: '32px',
+            height: '32px',
+            marginBottom: '8px',
+            color: `var(--color-${color}-text)`,
+          }}
+          dangerouslySetInnerHTML={{ __html: icon }}
+        />
+
+        {/* Label */}
+        <div
+          style={{
+            fontSize: '14px',
+            fontWeight: '600',
+            color: `var(--color-${color}-text)`,
+            textAlign: 'center',
+            marginBottom: description ? '4px' : '0',
+            lineHeight: '1.2',
+            wordBreak: 'break-word',
+            maxWidth: '100%',
+          }}
+        >
+          {label}
+        </div>
+
+        {/* Description */}
+        {description && (
+          <div
+            style={{
+              fontSize: '11px',
+              color: `var(--color-${color}-text)`,
+              opacity: 0.8,
+              textAlign: 'center',
+              lineHeight: '1.3',
+              wordBreak: 'break-word',
+              maxWidth: '100%',
+            }}
+          >
+            {description}
+          </div>
+        )}
+      </HTMLContainer>
+    );
+  }
+
+  indicator(shape: DiagramNodeShape) {
+    return <rect width={shape.props.w} height={shape.props.h} />;
+  }
+
+  override onResize = (_shape: DiagramNodeShape, info: any) => {
+    return {
+      props: {
+        w: Math.max(100, info.initialBounds.width * info.scaleX),
+        h: Math.max(80, info.initialBounds.height * info.scaleY),
+      },
+    };
+  };
+}
+
+// Helper function to get color for node type
+export function getNodeColor(nodeType: NodeType): TLDefaultColorStyle {
+  return NODE_COLORS[nodeType] || 'grey';
+}

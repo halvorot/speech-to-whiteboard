@@ -1,0 +1,32 @@
+# Environment
+.env
+.env.local
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Gradle
+.gradle/
+build/
+out/
+
+# Supabase
+supabase/.branches/
+supabase/.temp/
+.dbdata/
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
