@@ -2,6 +2,8 @@
 
 Real-time collaborative whiteboard controlled by voice commands.
 
+![Demo](docs/screen-recording-db-server-client-diagram.gif)
+
 ## Current Status: Stage 3 Complete ✅
 
 ### Stage 1: The Skeleton ✅
@@ -47,7 +49,7 @@ make dev-client     # Terminal 2
 
 Go to http://localhost:5173 and sign up!
 
-See [LOCAL_DEVELOPMENT.md](./LOCAL_DEVELOPMENT.md) for detailed guide.
+See [LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md) for detailed guide.
 
 ---
 
