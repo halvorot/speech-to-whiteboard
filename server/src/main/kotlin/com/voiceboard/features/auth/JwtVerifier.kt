@@ -45,6 +45,10 @@ class JwtVerifier(supabaseUrl: String) {
 
     fun verify(token: String): Result<String> {
         return try {
+            // Decode without verification first to see what algorithm is used
+            val decoded = JWT.decode(token)
+            logger.info("Token algorithm: ${decoded.algorithm}, keyId: ${decoded.keyId}, issuer: ${decoded.issuer}")
+
             val decodedJWT = verifier.verify(token)
             val userId = decodedJWT.subject
             logger.debug("JWT verified successfully for user: $userId")
