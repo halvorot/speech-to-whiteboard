@@ -1,0 +1,38 @@
+# Build output
+build
+.gradle
+.kotlin
+bin
+out
+
+# Environment
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
+.vscode
+.idea
+*.iml
+*.ipr
+*.iws
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+test-results
+
+# Misc
+*.log
+.git
+.gitignore
+README.md
+Dockerfile
+.dockerignore

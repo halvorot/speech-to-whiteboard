@@ -7,17 +7,17 @@ import com.voiceboard.features.auth.JwtVerifier
 import com.voiceboard.features.transcription.DeepgramClient
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
-import io.ktor.client.plugins.websocket.*
 import io.ktor.serialization.kotlinx.json.*
+import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.cors.routing.*
+import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
@@ -82,6 +82,10 @@ fun Application.module() {
     }
 
     routing {
+        get("/health") {
+            call.respond(HttpStatusCode.OK, mapOf("status" to "healthy"))
+        }
+
         webSocket("/ws") {
             // Extract and verify JWT token from query parameter
             val token = call.request.queryParameters["token"]

@@ -1,6 +1,7 @@
 # Environment
 .env
 .env.local
+.env.docker
 
 # Node
 node_modules/
