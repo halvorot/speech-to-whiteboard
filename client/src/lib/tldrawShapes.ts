@@ -1,36 +1,7 @@
-import { type Editor, type TLDefaultColorStyle } from 'tldraw';
+import { type Editor } from 'tldraw';
 import type { LayoutNode, LayoutEdge } from './graphLayout';
 import { getShapeId, getArrowId } from './graphLayout';
 import { getNodeColor } from './DiagramNodeShape';
-
-// Derive frame color from label/description keywords
-function getFrameColor(label: string, description: string): TLDefaultColorStyle {
-  const text = (label + ' ' + description).toLowerCase();
-
-  // Infrastructure / Backend
-  if (text.match(/backend|server|api|infrastructure|service/)) return 'blue';
-
-  // Frontend / UI
-  if (text.match(/frontend|client|ui|user|interface|web/)) return 'light-blue';
-
-  // Data / Storage
-  if (text.match(/data|database|storage|cache|persistence/)) return 'green';
-
-  // Network / Communication
-  if (text.match(/network|gateway|load.?balance|cdn|proxy/)) return 'light-violet';
-
-  // Security / Auth
-  if (text.match(/security|auth|permission|access/)) return 'red';
-
-  // Business / Logic
-  if (text.match(/business|logic|workflow|process/)) return 'orange';
-
-  // External / Third-party
-  if (text.match(/external|third.?party|integration|vendor/)) return 'yellow';
-
-  // Default
-  return 'grey';
-}
 
 // Calculate arrow endpoints on shape edges
 export function calculateEdgePoints(
@@ -104,23 +75,14 @@ export function renderLayout(editor: Editor, nodes: LayoutNode[], edges: LayoutE
     editor.deleteShapes(existingShapes.map((s) => s.id));
   }
 
-  // Create frames first (native tldraw frames)
+  // Create frames first (simple native frames)
   const frames = nodes.filter((n) => n.type === 'frame');
   const regularNodes = nodes.filter((n) => n.type !== 'frame');
 
-  // Build frame color map for child nodes
-  const frameColors = new Map<string, TLDefaultColorStyle>();
-  frames.forEach((frame) => {
-    const frameColor = getFrameColor(frame.label, frame.description);
-    frameColors.set(frame.id, frameColor);
-  });
-
   frames.forEach((frame) => {
     const shapeId = getShapeId(frame.id);
-    const frameColor = frameColors.get(frame.id)!;
 
     try {
-      // Create native frame for structure
       editor.createShape({
         type: 'frame',
         id: shapeId,
@@ -130,24 +92,6 @@ export function renderLayout(editor: Editor, nodes: LayoutNode[], edges: LayoutE
           w: frame.width,
           h: frame.height,
           name: frame.label,
-        },
-      });
-
-      // Add colored background rectangle inside frame
-      editor.createShape({
-        type: 'geo',
-        id: `${shapeId}_bg` as any,
-        x: 0,
-        y: 0,
-        parentId: shapeId,
-        props: {
-          w: frame.width,
-          h: frame.height,
-          geo: 'rectangle',
-          color: frameColor,
-          fill: 'semi',
-          dash: 'draw',
-          size: 's',
         },
       });
     } catch (error) {

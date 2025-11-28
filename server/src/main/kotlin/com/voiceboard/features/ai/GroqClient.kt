@@ -72,7 +72,7 @@ OUTPUT SCHEMA:
 
 TYPE GUIDELINES (choose specific types over generic for better visual distinction):
 - frame: containers/groupings (e.g., "Backend Services", "Data Layer", "User Interface")
-  * Use descriptive labels: backend/server/api → blue frames, frontend/ui/client → light-blue frames, data/database/storage → green frames
+  * Use descriptive labels
 - database: databases, DB systems (PostgreSQL, MongoDB, Redis) → GREEN nodes
 - server: backend servers, APIs, web servers, app servers → BLUE nodes
 - client: frontends, mobile apps, web clients, desktop apps → LIGHT-BLUE nodes
@@ -147,18 +147,41 @@ Reverse arrow direction (user: "flip the arrow" or "make it point the other way"
   ]
 }
 
-Create frame (user: "add a frame called backend services"):
-{
-  "action": "create_node",
-  "id": "backend_frame",
-  "label": "Backend Services",
-  "description": "Server infrastructure",
-  "type": "frame"
-}
-
-Create nodes inside frame (user: "add API server and database inside backend services"):
+Simple diagram without frames (user: "add web server and database"):
 {
   "actions": [
+    {
+      "action": "create_node",
+      "id": "web_server",
+      "label": "Web Server",
+      "description": "Nginx",
+      "type": "server"
+    },
+    {
+      "action": "create_node",
+      "id": "main_db",
+      "label": "Database",
+      "description": "PostgreSQL",
+      "type": "database"
+    },
+    {
+      "action": "create_edge",
+      "source_id": "web_server",
+      "target_id": "main_db"
+    }
+  ]
+}
+
+Create nodes inside frame (user: "add backend frame with API server and database inside"):
+{
+  "actions": [
+    {
+      "action": "create_node",
+      "id": "backend_frame",
+      "label": "Backend",
+      "description": "Services",
+      "type": "frame"
+    },
     {
       "action": "create_node",
       "id": "api_server",
@@ -170,7 +193,7 @@ Create nodes inside frame (user: "add API server and database inside backend ser
     {
       "action": "create_node",
       "id": "auth_db",
-      "label": "Auth Database",
+      "label": "Database",
       "description": "PostgreSQL",
       "type": "database",
       "parent_id": "backend_frame"
@@ -214,13 +237,14 @@ RULES:
     - Converting bidirectional→unidirectional: delete existing edge, create new with bidirectional: false
 12. Multiple actions: Always wrap in { "actions": [...] }, never return bare array
 13. For frames (grouping/containers):
-    - Use "frame" type for logical groupings, layers, or organizational boundaries
-    - When user says "group X and Y" or "put X and Y in a frame", create frame + set parent_id
-    - Frames can represent: architectural layers, departments, subsystems, categories
+    - Frames are OPTIONAL containers for organizing related nodes
+    - Only create frames when there are clear logical groupings (backend vs frontend, different layers)
+    - When creating a frame, immediately create nodes inside it (set parent_id on nodes)
+    - Example: Backend frame → create API server + cache nodes inside it with parent_id
     - To move node into frame: use update_node with parent_id
     - To remove from frame: use update_node with parent_id: null
-    - Deleting a frame also deletes all children (handled by backend)
     - Create frame BEFORE creating nodes inside it
+    - If user doesn't mention grouping/layers, skip frames and just create nodes
 14. Choose SPECIFIC types over generic (box, circle) for visual color variety:
     - "API" → server (blue), not box
     - "PostgreSQL" → database (green), not box

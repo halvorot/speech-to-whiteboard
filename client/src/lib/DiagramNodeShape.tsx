@@ -65,6 +65,36 @@ const NODE_COLORS: Record<NodeType, TLDefaultColorStyle> = {
   unknown: 'grey',
 };
 
+// Distinct pastel colors (readable with good differentiation)
+const SOLID_COLORS: Record<NodeType, string> = {
+  // Infrastructure - Blue (distinct)
+  server: '#60a5fa',      // Medium blue
+  client: '#38bdf8',      // Cyan
+  network: '#a78bfa',     // Purple
+  cloud: '#7dd3fc',       // Sky blue
+  box: '#60a5fa',         // Medium blue
+
+  // Data - Green (distinct)
+  database: '#4ade80',    // Bright green
+  storage: '#86efac',     // Light green
+  data: '#34d399',        // Emerald
+
+  // People - Purple/Pink (distinct)
+  person: '#e879f9',      // Magenta
+
+  // Processes - Orange/Red (distinct)
+  process: '#fb923c',     // Orange
+  hexagon: '#f87171',     // Red
+
+  // Decisions - Yellow (distinct)
+  diamond: '#facc15',     // Yellow
+
+  // Generic
+  circle: '#d1d5db',
+  frame: '#d1d5db',
+  unknown: '#d1d5db',
+};
+
 // Shape type definition
 export type DiagramNodeShape = TLBaseShape<
   'diagram-node',
@@ -104,6 +134,7 @@ export class DiagramNodeUtil extends BaseBoxShapeUtil<DiagramNodeShape> {
   component(shape: DiagramNodeShape) {
     const { w, h, color, nodeType, label, description } = shape.props;
     const icon = ICONS[nodeType] || ICONS.unknown;
+    const bgColor = SOLID_COLORS[nodeType] || SOLID_COLORS.unknown;
 
     return (
       <HTMLContainer
@@ -115,7 +146,7 @@ export class DiagramNodeUtil extends BaseBoxShapeUtil<DiagramNodeShape> {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: `var(--color-${color})`,
+          backgroundColor: bgColor,
           border: `2px solid var(--color-${color}-text)`,
           borderRadius: '8px',
           padding: '12px',
