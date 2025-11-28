@@ -2,6 +2,8 @@
 
 Real-time collaborative whiteboard controlled by voice commands.
 
+**🚀 Live Demo:** [voiceboard.halvorteigen.no](https://voiceboard.halvorteigen.no)
+
 ![Demo](docs/screen-recording-db-server-client-diagram-short.gif)
 
 See the full screen recording [here](docs/screen-recording-db-server-client-diagram.mov)
