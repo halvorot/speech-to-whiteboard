@@ -245,6 +245,7 @@ export function Whiteboard() {
     if (sketchCommands.actions.length === 0) {
       console.log('No actions to perform');
       clearStatusTimeout();
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAppStatus('idle');
       addToast('info', 'No matching items found - could not understand the command');
       return;
@@ -252,11 +253,9 @@ export function Whiteboard() {
 
     // Apply all actions to graph state
     const graphState = graphStateRef.current;
-    let successCount = 0;
     for (const action of sketchCommands.actions) {
       const applied = applyAction(graphState, action);
       console.log(`Applied action ${action.action}:`, applied);
-      if (applied) successCount++;
     }
 
     // Layout and render

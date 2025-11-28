@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { createGraphState, applyAction, type GraphState, type SketchAction } from './graphLayout';
+import { createGraphState, applyAction } from './graphLayout';
+import type { SketchAction } from '../types/sketch';
 
 describe('graphLayout', () => {
   describe('createGraphState', () => {

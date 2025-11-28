@@ -4,6 +4,7 @@ import {
   Rectangle2d,
   type TLBaseShape,
   type TLDefaultColorStyle,
+  type TLResizeInfo,
 } from 'tldraw';
 import type { NodeType } from '../types/sketch';
 
@@ -171,7 +172,7 @@ export class DiagramNodeUtil extends BaseBoxShapeUtil<DiagramNodeShape> {
     return <rect width={shape.props.w} height={shape.props.h} />;
   }
 
-  override onResize = (_shape: DiagramNodeShape, info: any) => {
+  override onResize = (_shape: DiagramNodeShape, info: TLResizeInfo<DiagramNodeShape>) => {
     return {
       props: {
         w: Math.max(100, info.initialBounds.width * info.scaleX),
