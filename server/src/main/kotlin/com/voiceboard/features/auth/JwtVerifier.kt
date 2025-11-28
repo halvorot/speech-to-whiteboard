@@ -14,14 +14,12 @@ import java.util.concurrent.TimeUnit
 class JwtVerifier(supabaseUrl: String) {
     private val logger = LoggerFactory.getLogger(JwtVerifier::class.java)
 
-    private val isLocal = supabaseUrl.contains("127.0.0.1") || supabaseUrl.contains("localhost")
-
-    private val algorithm = if (isLocal) {
-        logger.info("Using local Supabase JWT verification (HS256)")
-        Algorithm.HMAC256("super-secret-jwt-token-with-at-least-32-characters-long")
-    } else {
-        logger.info("Using production Supabase JWT verification (RS256 via JWKS)")
+    private val algorithm = let {
+        // Default: Use RS256 with JWKS (modern, secure approach)
+        logger.info("Using RS256 JWT verification via JWKS (recommended)")
         val jwksUrl = "$supabaseUrl/auth/v1/jwks"
+        logger.info("JWKS endpoint: $jwksUrl")
+
         val provider = JwkProviderBuilder(URL(jwksUrl))
             .cached(10, 24, TimeUnit.HOURS)
             .rateLimited(10, 1, TimeUnit.MINUTES)
@@ -29,6 +27,7 @@ class JwtVerifier(supabaseUrl: String) {
 
         val keyProvider = object : RSAKeyProvider {
             override fun getPublicKeyById(keyId: String): RSAPublicKey {
+                logger.debug("Fetching public key for keyId: $keyId")
                 return provider.get(keyId).publicKey as RSAPublicKey
             }
 
@@ -38,6 +37,7 @@ class JwtVerifier(supabaseUrl: String) {
 
         Algorithm.RSA256(keyProvider)
     }
+
 
     private val verifier = JWT.require(algorithm)
         .acceptLeeway(10)
