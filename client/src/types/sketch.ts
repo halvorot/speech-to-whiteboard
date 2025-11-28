@@ -14,6 +14,7 @@ export type NodeType =
   | 'person'
   | 'process'
   | 'data'
+  | 'frame'
   // Legacy types
   | 'database'
   | 'server'
@@ -31,6 +32,7 @@ export interface SketchAction {
   source_id?: string;
   target_id?: string;
   bidirectional?: boolean;
+  parent_id?: string;
 }
 
 export interface SketchResponse {

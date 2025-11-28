@@ -6,7 +6,8 @@ data class GraphNode(
     val id: String,
     val label: String,
     val description: String,
-    val type: NodeType
+    val type: NodeType,
+    val parentId: String? = null
 )
 
 data class GraphEdge(
@@ -22,13 +23,35 @@ data class GraphState(
     fun toSummary(): String {
         if (nodes.isEmpty()) return "Empty graph"
 
-        val nodeList = nodes.values.joinToString(", ") { "${it.id}:${it.label}" }
+        val frames = nodes.values.filter { it.type == NodeType.frame }
+        val regularNodes = nodes.values.filter { it.type != NodeType.frame }
+
+        val frameList = frames.joinToString(", ") {
+            val children = regularNodes.filter { it.parentId == it.id }.map { it.id }
+            if (children.isEmpty()) {
+                "${it.id}:${it.label}(frame)"
+            } else {
+                "${it.id}:${it.label}(frame)[${children.joinToString(",")}]"
+            }
+        }
+
+        val nodeList = regularNodes.joinToString(", ") {
+            if (it.parentId != null) {
+                "${it.id}:${it.label}→${it.parentId}"
+            } else {
+                "${it.id}:${it.label}"
+            }
+        }
+
         val edgeList = if (edges.isEmpty()) "" else edges.joinToString(", ") {
             val direction = if (it.bidirectional) "<->" else "->"
             "${it.sourceId}${direction}${it.targetId}"
         }
 
         return buildString {
+            if (frameList.isNotEmpty()) {
+                append("Frames: $frameList | ")
+            }
             append("Nodes: $nodeList")
             if (edgeList.isNotEmpty()) {
                 append(" | Edges: $edgeList")
@@ -44,7 +67,8 @@ data class GraphState(
                         id = action.id,
                         label = action.label,
                         description = action.description ?: "",
-                        type = action.type
+                        type = action.type,
+                        parentId = action.parentId
                     )
                     true
                 } else false
@@ -56,7 +80,8 @@ data class GraphState(
                         id = action.id,
                         label = action.label ?: existing.label,
                         description = action.description ?: existing.description,
-                        type = action.type ?: existing.type
+                        type = action.type ?: existing.type,
+                        parentId = action.parentId ?: existing.parentId
                     )
                     true
                 } else false
@@ -66,6 +91,8 @@ data class GraphState(
                     nodes.remove(action.id)
                     // Remove edges connected to this node
                     edges.removeIf { it.sourceId == action.id || it.targetId == action.id }
+                    // Remove child nodes if deleting a frame
+                    nodes.values.removeIf { it.parentId == action.id }
                     true
                 } else false
             }

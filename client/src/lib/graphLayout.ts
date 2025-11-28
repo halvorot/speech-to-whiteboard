@@ -9,6 +9,7 @@ export interface GraphNode {
   label: string;
   description: string;
   type: NodeType;
+  parentId?: string;
 }
 
 export interface GraphEdge {
@@ -32,6 +33,7 @@ export interface LayoutNode {
   y: number;
   width: number;
   height: number;
+  parentId?: string;
 }
 
 export interface LayoutEdge {
@@ -66,6 +68,7 @@ export function applyAction(state: GraphState, action: SketchAction): boolean {
           label: action.label,
           description: action.description || '',
           type: action.type,
+          parentId: action.parent_id,
         });
         return true;
       }
@@ -79,6 +82,7 @@ export function applyAction(state: GraphState, action: SketchAction): boolean {
           label: action.label || existing.label,
           description: action.description !== undefined ? action.description : existing.description,
           type: action.type || existing.type,
+          parentId: action.parent_id !== undefined ? action.parent_id : existing.parentId,
         });
         return true;
       }
@@ -91,6 +95,12 @@ export function applyAction(state: GraphState, action: SketchAction): boolean {
         for (const [edgeId, edge] of state.edges) {
           if (edge.sourceId === action.id || edge.targetId === action.id) {
             state.edges.delete(edgeId);
+          }
+        }
+        // Remove child nodes if deleting a frame
+        for (const [nodeId, node] of state.nodes) {
+          if (node.parentId === action.id) {
+            state.nodes.delete(nodeId);
           }
         }
         return true;
@@ -133,13 +143,42 @@ export function applyAction(state: GraphState, action: SketchAction): boolean {
 }
 
 export async function layoutGraph(state: GraphState): Promise<LayoutResult> {
-  // Convert to ELK format
-  const elkNodes = Array.from(state.nodes.values()).map((node) => ({
-    id: node.id,
-    width: NODE_WIDTH,
-    height: NODE_HEIGHT,
-    labels: [{ text: node.label }],
-  }));
+  const nodesArray = Array.from(state.nodes.values());
+  const frames = nodesArray.filter((n) => n.type === 'frame');
+  const regularNodes = nodesArray.filter((n) => n.type !== 'frame');
+
+  // Build ELK nodes with hierarchy
+  const elkFrames: ElkNode[] = frames.map((frame) => {
+    const children = regularNodes.filter((n) => n.parentId === frame.id);
+    return {
+      id: frame.id,
+      width: NODE_WIDTH * 2,
+      height: NODE_HEIGHT * 2,
+      labels: [{ text: frame.label }],
+      layoutOptions: {
+        'elk.padding': '[top=60,left=20,bottom=20,right=20]',
+        'elk.algorithm': 'layered',
+        'elk.direction': 'RIGHT',
+        'elk.spacing.nodeNode': '40',
+      },
+      children: children.map((n) => ({
+        id: n.id,
+        width: NODE_WIDTH,
+        height: NODE_HEIGHT,
+        labels: [{ text: n.label }],
+      })),
+    };
+  });
+
+  // Top-level nodes (not in any frame)
+  const topLevelNodes: ElkNode[] = regularNodes
+    .filter((n) => !n.parentId)
+    .map((n) => ({
+      id: n.id,
+      width: NODE_WIDTH,
+      height: NODE_HEIGHT,
+      labels: [{ text: n.label }],
+    }));
 
   const elkEdges = Array.from(state.edges.values()).map((edge) => ({
     id: edge.id,
@@ -154,28 +193,43 @@ export async function layoutGraph(state: GraphState): Promise<LayoutResult> {
       'elk.direction': 'RIGHT',
       'elk.spacing.nodeNode': '80',
       'elk.layered.spacing.nodeNodeBetweenLayers': '100',
+      'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
     },
-    children: elkNodes,
+    children: [...elkFrames, ...topLevelNodes],
     edges: elkEdges,
   };
 
   // Run ELK layout
   const layouted = await elk.layout(graph);
 
-  // Convert back to our format
-  const nodes: LayoutNode[] = (layouted.children || []).map((node) => {
-    const original = state.nodes.get(node.id)!;
-    return {
-      id: node.id,
-      label: original.label,
-      description: original.description,
-      type: original.type,
-      x: node.x || 0,
-      y: node.y || 0,
-      width: node.width || NODE_WIDTH,
-      height: node.height || NODE_HEIGHT,
-    };
-  });
+  // Extract all nodes (frames and children) with positions
+  const nodes: LayoutNode[] = [];
+
+  function extractNodes(parent: ElkNode) {
+    for (const node of parent.children || []) {
+      const original = state.nodes.get(node.id)!;
+
+      // Use ELK's positions directly - they're already relative to parent
+      nodes.push({
+        id: node.id,
+        label: original.label,
+        description: original.description,
+        type: original.type,
+        x: node.x || 0,
+        y: node.y || 0,
+        width: node.width || NODE_WIDTH,
+        height: node.height || NODE_HEIGHT,
+        parentId: original.parentId,
+      });
+
+      // Recursively extract children (they'll have positions relative to this node)
+      if (node.children && node.children.length > 0) {
+        extractNodes(node);
+      }
+    }
+  }
+
+  extractNodes(layouted);
 
   const edges: LayoutEdge[] = Array.from(state.edges.values()).map((edge) => ({
     id: edge.id,

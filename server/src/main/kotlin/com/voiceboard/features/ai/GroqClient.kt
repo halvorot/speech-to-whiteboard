@@ -61,29 +61,32 @@ OUTPUT SCHEMA:
       "id": "unique_id",
       "label": "Short main title (2-4 words)",
       "description": "Brief detail (optional, 3-8 words)",
-      "type": "box" | "circle" | "cloud" | "diamond" | "hexagon" | "person" | "process" | "data" | "database" | "server" | "client" | "storage" | "network" | "unknown",
+      "type": "box" | "circle" | "cloud" | "diamond" | "hexagon" | "person" | "process" | "data" | "frame" | "database" | "server" | "client" | "storage" | "network" | "unknown",
       "source_id": "for edges",
       "target_id": "for edges",
-      "bidirectional": true/false (for edges, default false)
+      "bidirectional": true/false (for edges, default false),
+      "parent_id": "frame id (for grouping nodes inside frames)"
     }
   ]
 }
 
-TYPE GUIDELINES:
-- database: databases, DB systems (PostgreSQL, MongoDB, Redis)
-- server: backend servers, APIs, web servers, app servers
-- client: frontends, mobile apps, web clients, desktop apps
-- storage: file storage, object storage, S3, blob storage
-- network: load balancers, CDNs, routers, gateways
-- cloud: cloud services, SaaS, external APIs
-- person: people, roles, actors, teams
-- process: workflows, pipelines, operations, transformations
-- data: data flows, datasets, data sources
-- diamond: decisions, conditionals, gateways
-- hexagon: processing steps, operations
-- box: generic systems, components, modules
-- circle: states, endpoints, simple concepts
-- unknown: when unsure
+TYPE GUIDELINES (choose specific types over generic for better visual distinction):
+- frame: containers/groupings (e.g., "Backend Services", "Data Layer", "User Interface")
+  * Use descriptive labels: backend/server/api → blue frames, frontend/ui/client → light-blue frames, data/database/storage → green frames
+- database: databases, DB systems (PostgreSQL, MongoDB, Redis) → GREEN nodes
+- server: backend servers, APIs, web servers, app servers → BLUE nodes
+- client: frontends, mobile apps, web clients, desktop apps → LIGHT-BLUE nodes
+- storage: file storage, object storage, S3, blob storage → LIGHT-GREEN nodes
+- network: load balancers, CDNs, routers, gateways → LIGHT-VIOLET nodes
+- cloud: cloud services, SaaS, external APIs → LIGHT-BLUE nodes
+- person: people, roles, actors, teams → VIOLET nodes
+- process: workflows, pipelines, operations, transformations → ORANGE nodes
+- data: data flows, datasets, data sources → LIGHT-GREEN nodes
+- diamond: decisions, conditionals, gateways → YELLOW nodes
+- hexagon: processing steps, operations → LIGHT-RED nodes
+- box: generic systems, components, modules → BLUE nodes (use only when no specific type fits)
+- circle: states, endpoints, simple concepts → GREY nodes
+- unknown: when unsure → GREY nodes (avoid using this)
 
 LABEL + DESCRIPTION PATTERN:
 - label: Short, clear name (e.g., "MySQL", "Web Server", "CEO")
@@ -144,6 +147,51 @@ Reverse arrow direction (user: "flip the arrow" or "make it point the other way"
   ]
 }
 
+Create frame (user: "add a frame called backend services"):
+{
+  "action": "create_node",
+  "id": "backend_frame",
+  "label": "Backend Services",
+  "description": "Server infrastructure",
+  "type": "frame"
+}
+
+Create nodes inside frame (user: "add API server and database inside backend services"):
+{
+  "actions": [
+    {
+      "action": "create_node",
+      "id": "api_server",
+      "label": "API Server",
+      "description": "Express.js",
+      "type": "server",
+      "parent_id": "backend_frame"
+    },
+    {
+      "action": "create_node",
+      "id": "auth_db",
+      "label": "Auth Database",
+      "description": "PostgreSQL",
+      "type": "database",
+      "parent_id": "backend_frame"
+    }
+  ]
+}
+
+Move node into frame (user: "move API server into backend services frame"):
+{
+  "action": "update_node",
+  "id": "api_server",
+  "parent_id": "backend_frame"
+}
+
+Remove node from frame (user: "take API server out of the frame"):
+{
+  "action": "update_node",
+  "id": "api_server",
+  "parent_id": null
+}
+
 RULES:
 1. Always provide both label AND description for create_node
 2. Keep labels SHORT (2-4 words max)
@@ -165,6 +213,21 @@ RULES:
     - Edge matching: "arrow from X to Y" has source=X, target=Y
     - Converting bidirectional→unidirectional: delete existing edge, create new with bidirectional: false
 12. Multiple actions: Always wrap in { "actions": [...] }, never return bare array
+13. For frames (grouping/containers):
+    - Use "frame" type for logical groupings, layers, or organizational boundaries
+    - When user says "group X and Y" or "put X and Y in a frame", create frame + set parent_id
+    - Frames can represent: architectural layers, departments, subsystems, categories
+    - To move node into frame: use update_node with parent_id
+    - To remove from frame: use update_node with parent_id: null
+    - Deleting a frame also deletes all children (handled by backend)
+    - Create frame BEFORE creating nodes inside it
+14. Choose SPECIFIC types over generic (box, circle) for visual color variety:
+    - "API" → server (blue), not box
+    - "PostgreSQL" → database (green), not box
+    - "React App" → client (light-blue), not box
+    - "CEO" → person (violet), not box
+    - "Data Pipeline" → process (orange), not box
+    - "Cache" → storage (light-green), not data
 """.trimIndent()
 
     suspend fun streamCommands(

@@ -12,7 +12,8 @@ data class SketchAction(
     val type: NodeType? = null,
     @SerialName("source_id") val sourceId: String? = null,
     @SerialName("target_id") val targetId: String? = null,
-    val bidirectional: Boolean? = null
+    val bidirectional: Boolean? = null,
+    @SerialName("parent_id") val parentId: String? = null
 )
 
 @Serializable
@@ -34,6 +35,7 @@ enum class NodeType {
     person,
     process,
     data,
+    frame,
     // Legacy types (mapped to new types)
     database,
     server,

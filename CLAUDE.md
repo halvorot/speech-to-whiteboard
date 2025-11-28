@@ -98,6 +98,30 @@ Use this checklist to track progress. **Do not skip stages.**
     - [x] Implement edge manipulation (create, delete, reverse, bidirectional).
     - [x] Handle empty action notifications.
     - [x] Fix JSON parsing for array/object formats.
+    - [x] **Frames/Grouping Support:**
+        - [x] Add frame node type with parent-child relationships.
+        - [x] Implement hierarchical ELK layout for frames.
+        - [x] Create colored frame backgrounds (semantic color scheme).
+        - [x] Apply semantic colors to nodes (database=green, server=blue, etc.).
+        - [x] Update system prompt to teach AI about frames and grouping.
+
+- [ ] **Stage 3.5: Advanced Shape Types**
+    - [ ] **Text Boxes:**
+        - [ ] Add text box node type (headers, body text, captions).
+        - [ ] Implement rich text formatting support (bold, italic, lists).
+        - [ ] Update Sketch Protocol for text box actions.
+    - [ ] **Notes/Annotations:**
+        - [ ] Add sticky note shape type.
+        - [ ] Implement note positioning and styling.
+        - [ ] Support voice commands for note creation.
+    - [ ] **Images:**
+        - [ ] Add image node type to Sketch Protocol.
+        - [ ] Implement AI stock image selection based on descriptions.
+        - [ ] Integrate image fetching and rendering in tldraw.
+    - [ ] **System Integration:**
+        - [ ] Update system prompt with examples for all new shape types.
+        - [ ] Test all shape types working together.
+        - [ ] Ensure proper layout and color coordination.
 
 - [ ] **Stage 4: The Architect (Review)**
     - [ ] UI: "Review Board" button.

@@ -7,8 +7,7 @@ on:
       - main
 
 jobs:
-  frontend:
-    name: Frontend Build & Test
+  frontend-build-test:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -37,8 +36,7 @@ jobs:
       - name: Build
         run: npm run build
 
-  backend:
-    name: Backend Build & Test
+  backend-build-test:
     runs-on: ubuntu-latest
     defaults:
       run:
