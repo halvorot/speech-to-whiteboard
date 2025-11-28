@@ -22,7 +22,7 @@ class JwtVerifier(supabaseUrl: String) {
     // JWKS provider (lazy-initialized, supports both RSA and EC keys)
     private val jwksProvider by lazy {
         logger.info("Initializing JWKS provider")
-        val jwksUrl = "$supabaseUrl/auth/v1/jwks"
+        val jwksUrl = "$supabaseUrl/auth/v1/.well-known/jwks.json"
         logger.info("JWKS endpoint: $jwksUrl")
 
         JwkProviderBuilder(URI(jwksUrl).toURL())
