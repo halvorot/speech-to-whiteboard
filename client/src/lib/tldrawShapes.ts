@@ -4,7 +4,7 @@ import { getShapeId, getArrowId } from './graphLayout';
 import { getNodeColor } from './DiagramNodeShape';
 
 // Calculate arrow endpoints on shape edges
-function calculateEdgePoints(
+export function calculateEdgePoints(
   sourceNode: LayoutNode,
   targetNode: LayoutNode
 ): { startX: number; startY: number; endX: number; endY: number } {

@@ -33,7 +33,7 @@ help:
 	@echo ""
 	@echo "Testing:"
 	@echo "  make lint          - Lint frontend code"
-	@echo "  make test          - Run all tests (when implemented)"
+	@echo "  make test          - Run all tests (client + server)"
 
 # Installation
 install:
@@ -127,9 +127,10 @@ lint:
 
 test:
 	@echo "Running tests..."
-	@echo "⚠ Tests not yet implemented"
-	# cd client && npm test
-	# cd server && ./gradlew test
+	@echo "\n→ Client tests:"
+	cd client && npm test
+	@echo "\n→ Server tests:"
+	cd server && ./gradlew test --console=plain
 
 # Quick checks
 check-env:
