@@ -35,7 +35,7 @@ dependencies {
 
     // JWT for Supabase token verification
     implementation("com.auth0:java-jwt:4.5.0")
-    implementation("com.auth0:jwks-rsa:0.22.1")
+    implementation("com.auth0:jwks-rsa:0.23.0")
 
     // Logging
     implementation("ch.qos.logback:logback-classic:1.5.21")
