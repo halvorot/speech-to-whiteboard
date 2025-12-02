@@ -133,6 +133,13 @@ Use this checklist to track progress. **Do not skip stages.**
     - [ ] Load graph state on WebSocket connect.
     - [ ] Auto-save on graph changes.
 
+- [ ] **Stage 6: Multi-Language Support**
+    - [ ] Add language selection UI component.
+    - [ ] Configure Deepgram language parameter for STT.
+    - [ ] Update backend to accept language preferences via WebSocket.
+    - [ ] Test with multiple languages (e.g., English, Spanish, French).
+    - [ ] Store user language preference in Supabase.
+
 ## 6. Coding Standards
 ### Kotlin (Backend)
 * **Coroutines:** Use `Dispatchers.IO` for network calls.
