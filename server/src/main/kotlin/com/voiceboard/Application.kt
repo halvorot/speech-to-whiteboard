@@ -76,7 +76,7 @@ fun Application.module() {
         allowHeader("Content-Type")
     }
 
-    install(io.ktor.server.websocket.WebSockets) {
+    install(WebSockets) {
         pingPeriod = 15.seconds
         timeout = 300.seconds
     }

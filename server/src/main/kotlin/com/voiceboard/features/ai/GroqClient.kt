@@ -45,9 +45,7 @@ class GroqClient(
     private val json = Json { ignoreUnknownKeys = true }
     private val baseUrl = "https://api.groq.com/openai/v1/chat/completions"
 
-    private val systemPrompt: String by lazy {
-        loadSystemPrompt()
-    }
+    private val systemPrompt: String = loadSystemPrompt()
 
     private fun loadSystemPrompt(): String {
         return try {
