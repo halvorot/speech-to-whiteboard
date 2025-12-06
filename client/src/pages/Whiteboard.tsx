@@ -221,14 +221,15 @@ export function Whiteboard() {
     console.log('Recording stopped');
   };
 
-  // Push-to-talk handlers
-  const handleMouseDown = async () => {
+  // Recording toggle handler
+  const handleRecordingToggle = async () => {
     if (!isWsConnected) return;
-    await startRecording();
-  };
 
-  const handleMouseUp = () => {
-    stopRecording();
+    if (isRecording) {
+      stopRecording();
+    } else {
+      await startRecording();
+    }
   };
 
   // Handle sketch commands and render
@@ -292,22 +293,20 @@ export function Whiteboard() {
         </div>
         <div className="flex items-center gap-4">
           <button
-            onMouseDown={handleMouseDown}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
+            onClick={handleRecordingToggle}
             disabled={!isWsConnected}
             className={`px-6 py-3 rounded-full font-medium transition-all ${
               isRecording
-                ? 'bg-red-600 text-white scale-110'
+                ? 'bg-red-600 text-white scale-110 animate-pulse'
                 : isWsConnected
                 ? 'bg-blue-600 text-white hover:bg-blue-700'
                 : 'bg-gray-400 text-gray-200 cursor-not-allowed'
             }`}
           >
             {isRecording
-              ? '🎤 Recording...'
+              ? '🔴 Recording...'
               : isWsConnected
-              ? '🎤 Push to Talk'
+              ? '🎤 Start Recording'
               : '🎤 Connecting...'
             }
           </button>
