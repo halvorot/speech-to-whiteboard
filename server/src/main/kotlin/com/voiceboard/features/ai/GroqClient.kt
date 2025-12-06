@@ -4,9 +4,11 @@ import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.utils.io.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -14,8 +16,8 @@ import org.slf4j.LoggerFactory
 
 @Serializable
 data class GroqMessage(
-    val role: String,
-    val content: String
+    val role: String? = null,
+    val content: String? = null
 )
 
 @Serializable
@@ -62,53 +64,66 @@ class GroqClient(
         }
     }
 
-    suspend fun streamCommands(
+    fun streamCommands(
         graphSummary: String,
         userPrompt: String
     ): Flow<String> = flow {
-        withContext(Dispatchers.IO) {
+        try {
+            val request = GroqRequest(
+                model = "llama-3.3-70b-versatile",
+                messages = listOf(
+                    GroqMessage("system", systemPrompt),
+                    GroqMessage("user", "Current graph: $graphSummary\n\nUser command: $userPrompt")
+                ),
+                temperature = 0.1,
+                stream = true
+            )
+
+            logger.info("Sending streaming request to Groq")
+
+            val response: HttpResponse = client.post(baseUrl) {
+                header("Authorization", "Bearer $apiKey")
+                contentType(ContentType.Application.Json)
+                setBody(request)
+            }
+
+            logger.info("Groq response status: ${response.status}")
+
+            val channel: ByteReadChannel = response.bodyAsChannel()
+            var tokenCount = 0
+
+            // Read streaming response line by line using readUTF8Line
             try {
-                val request = GroqRequest(
-                    model = "llama-3.3-70b-versatile",
-                    messages = listOf(
-                        GroqMessage("system", systemPrompt),
-                        GroqMessage("user", "Current graph: $graphSummary\n\nUser command: $userPrompt")
-                    ),
-                    temperature = 0.1,
-                    stream = true
-                )
+                while (!channel.isClosedForRead) {
+                    val line = channel.readUTF8Line() ?: break
 
-                logger.info("Sending request to Groq: $userPrompt")
-
-                val response: HttpResponse = client.post(baseUrl) {
-                    header("Authorization", "Bearer $apiKey")
-                    contentType(ContentType.Application.Json)
-                    setBody(request)
-                }
-
-                val text = response.bodyAsText()
-
-                // Parse streaming response (SSE format)
-                text.lines().forEach { line ->
+                    // Parse SSE format: "data: {json}"
                     if (line.startsWith("data: ") && !line.contains("[DONE]")) {
                         try {
-                            val jsonLine = line.removePrefix("data: ")
-                            val groqResponse = json.decodeFromString<GroqResponse>(jsonLine)
-                            val delta = groqResponse.choices.firstOrNull()?.delta?.content
-                            if (!delta.isNullOrBlank()) {
-                                emit(delta)
+                            val jsonLine = line.removePrefix("data: ").trim()
+                            if (jsonLine.isNotEmpty()) {
+                                val groqResponse = json.decodeFromString<GroqResponse>(jsonLine)
+                                val delta = groqResponse.choices.firstOrNull()?.delta?.content
+                                if (!delta.isNullOrBlank()) {
+                                    tokenCount++
+                                    emit(delta)
+                                }
                             }
                         } catch (e: Exception) {
-                            logger.debug("Failed to parse streaming chunk: $line", e)
+                            logger.debug("Skipping line: ${e.message}")
                         }
                     }
                 }
             } catch (e: Exception) {
-                logger.error("Error in Groq streaming", e)
-                throw e
+                logger.error("Error reading stream", e)
             }
+
+            logger.info("Groq streaming completed, emitted $tokenCount tokens")
+        } catch (e: Exception) {
+            logger.error("Error in Groq streaming", e)
+            throw e
         }
-    }
+    }.flowOn(Dispatchers.IO)
 
     suspend fun getCommands(
         graphSummary: String,
