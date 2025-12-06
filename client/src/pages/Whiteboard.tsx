@@ -17,6 +17,8 @@ export function Whiteboard() {
   const { signOut, session } = useAuth();
   const [editor, setEditor] = useState<Editor | null>(null);
   const [lastTranscript, setLastTranscript] = useState<string>('');
+  const [finalTranscripts, setFinalTranscripts] = useState<string[]>([]);
+  const [currentInterim, setCurrentInterim] = useState<string>('');
   const [sketchCommands, setSketchCommands] = useState<SketchResponse | null>(null);
   const [isWsConnected, setIsWsConnected] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -25,7 +27,6 @@ export function Whiteboard() {
   const graphStateRef = useRef<GraphState>(createGraphState());
   const wsRef = useRef<WebSocket | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
   const hasConnectedRef = useRef(false);
   const statusTimeoutRef = useRef<number | null>(null);
 
@@ -108,13 +109,30 @@ export function Whiteboard() {
         // Not JSON
       }
 
-      // Plain text transcript
+      // Plain text transcript (with INTERIM: or FINAL: prefix)
       if (data && !data.startsWith('Connected to')) {
-        console.log('WS: Setting transcript:', data);
+        console.log('WS: Received transcript:', data);
         clearStatusTimeout(); // Got response, clear timeout
-        setLastTranscript(data);
-        setAppStatus('generating');
-        addToast('info', `Heard: "${data.substring(0, 50)}${data.length > 50 ? '...' : ''}"`);
+
+        // Parse prefix to determine if interim or final
+        if (data.startsWith('INTERIM:')) {
+          const interimText = data.substring(8); // Remove "INTERIM:" prefix
+          setCurrentInterim(interimText);
+          setLastTranscript(interimText);
+        } else if (data.startsWith('FINAL:')) {
+          const finalText = data.substring(6); // Remove "FINAL:" prefix
+          setFinalTranscripts((prev) => [...prev, finalText]);
+          setCurrentInterim(''); // Clear interim since we got a final
+          setLastTranscript(finalText);
+        } else {
+          // Legacy format without prefix (for compatibility)
+          setLastTranscript(data);
+        }
+
+        // Change status when not recording (no toast for transcripts - shown in header)
+        if (!isRecording) {
+          setAppStatus('generating');
+        }
       }
     };
 
@@ -161,7 +179,8 @@ export function Whiteboard() {
       clearStatusTimeout(); // Clear any existing timeout
       setIsRecording(true);
       setAppStatus('transcribing');
-      audioChunksRef.current = [];
+      setFinalTranscripts([]); // Clear final transcripts for new recording
+      setCurrentInterim(''); // Clear interim transcript
 
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -179,30 +198,32 @@ export function Whiteboard() {
       const mediaRecorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = mediaRecorder;
 
+      // Send audio chunks in real-time as they become available
       mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
+        if (event.data.size > 0 && wsRef.current?.readyState === WebSocket.OPEN) {
+          console.log('Sending audio chunk, size:', event.data.size);
+          wsRef.current.send(event.data);
         }
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType });
-        console.log('Sending audio blob, size:', audioBlob.size);
-        if (wsRef.current?.readyState === WebSocket.OPEN && audioBlob.size > 0) {
-          wsRef.current.send(audioBlob);
+        // Send stop signal to backend
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          console.log('Sending STOP_RECORDING signal');
+          wsRef.current.send('STOP_RECORDING');
           // Start timeout for response
           startStatusTimeout();
         } else {
-          // No audio to send, reset status
-          console.log('No audio to send');
+          // Connection lost, reset status
+          console.log('WebSocket not open when stopping');
           setAppStatus('idle');
-          addToast('info', 'No audio captured - try speaking louder');
+          addToast('error', 'Connection lost');
         }
-        audioChunksRef.current = [];
       };
 
+      // Request audio data every 100ms for real-time streaming
       mediaRecorder.start(100);
-      console.log('Recording started');
+      console.log('Recording started with 100ms chunks');
     } catch (error) {
       console.error('Error starting recording:', error);
       setIsRecording(false);
@@ -246,7 +267,6 @@ export function Whiteboard() {
     if (sketchCommands.actions.length === 0) {
       console.log('No actions to perform');
       clearStatusTimeout();
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAppStatus('idle');
       addToast('info', 'No matching items found - could not understand the command');
       return;
@@ -285,9 +305,12 @@ export function Whiteboard() {
       <header className="bg-gray-800 text-white p-4 flex justify-between items-center relative z-40">
         <h1 className="text-xl font-bold">VoiceBoard</h1>
         <div className="flex-1 mx-8">
-          {lastTranscript && (
+          {(finalTranscripts.length > 0 || currentInterim || lastTranscript) && (
             <div className="bg-gray-700 px-4 py-2 rounded text-sm">
-              <span className="text-gray-400">You said:</span> {lastTranscript}
+              <span className="text-gray-400">
+                {isRecording ? 'Listening...' : 'You said:'}
+              </span>{' '}
+              {[...finalTranscripts, currentInterim].filter(Boolean).join(' ')}
             </div>
           )}
         </div>

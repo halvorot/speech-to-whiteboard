@@ -4,7 +4,6 @@ import io.ktor.client.*
 import io.ktor.client.plugins.websocket.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
-import io.ktor.http.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -18,7 +17,9 @@ import org.slf4j.LoggerFactory
 @Serializable
 data class DeepgramStreamResponse(
     val type: String,
-    val channel: TranscriptChannel? = null
+    val channel: TranscriptChannel? = null,
+    val is_final: Boolean? = null,
+    val speech_final: Boolean? = null
 )
 
 // Pre-recorded API response
@@ -77,7 +78,7 @@ class DeepgramClient(
             val url = "https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true"
             logger.info("Sending ${audioData.size} bytes to Deepgram pre-recorded API")
 
-            val response: io.ktor.client.statement.HttpResponse = client.post(url) {
+            val response: HttpResponse = client.post(url) {
                 header("Authorization", "Token $apiKey")
                 header("Content-Type", "audio/webm")
                 setBody(audioData)
@@ -94,7 +95,7 @@ class DeepgramClient(
                     throw IllegalStateException("Transcription failed: ${errorResponse.err_msg}")
                 } catch (e: kotlinx.serialization.SerializationException) {
                     // If we can't parse the error, throw generic error
-                    logger.error("Failed to parse Deepgram error response: $responseText")
+                    logger.error("Failed to parse Deepgram error response: $responseText. error: ${e.message}")
                     throw IllegalStateException("Transcription failed - please try again")
                 }
             }
@@ -124,11 +125,11 @@ class DeepgramClient(
 
     suspend fun streamAudio(
         audioChannel: Channel<ByteArray>,
-        transcriptCallback: suspend (String) -> Unit
+        transcriptCallback: suspend (String, Boolean) -> Unit
     ) = withContext(Dispatchers.IO) {
         try {
             // Try encoding=opus for browser MediaRecorder audio
-            val url = "wss://api.deepgram.com/v1/listen?model=nova-2&encoding=opus&smart_format=true&interim_results=false&filler_words=true"
+            val url = "wss://api.deepgram.com/v1/listen?model=nova-2&encoding=opus&smart_format=true&interim_results=true&filler_words=true"
             logger.info("Connecting to Deepgram WebSocket: $url")
 
             client.wss(
@@ -167,9 +168,10 @@ class DeepgramClient(
                                         // Only process transcript results, ignore metadata
                                         if (response.type == "Results" && response.channel != null) {
                                             val transcript = response.channel.alternatives.firstOrNull()?.transcript
+                                            val isFinal = response.is_final == true || response.speech_final == true
                                             if (!transcript.isNullOrBlank()) {
-                                                logger.info("Transcript: $transcript")
-                                                transcriptCallback(transcript)
+                                                logger.info("Transcript (final=$isFinal): $transcript")
+                                                transcriptCallback(transcript, isFinal)
                                             }
                                         } else {
                                             logger.info("Received ${response.type} message from Deepgram")
