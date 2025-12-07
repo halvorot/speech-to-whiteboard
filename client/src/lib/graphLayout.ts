@@ -124,6 +124,16 @@ export function applyAction(state: GraphState, action: SketchAction): boolean {
 
     case 'create_edge':
       if (action.source_id && action.target_id) {
+        // Validate that both nodes exist before creating edge
+        if (!state.nodes.has(action.source_id)) {
+          console.warn(`Cannot create edge: source node '${action.source_id}' does not exist`);
+          return false;
+        }
+        if (!state.nodes.has(action.target_id)) {
+          console.warn(`Cannot create edge: target node '${action.target_id}' does not exist`);
+          return false;
+        }
+
         const edgeId = action.id || `${action.source_id}->${action.target_id}`;
         state.edges.set(edgeId, {
           id: edgeId,

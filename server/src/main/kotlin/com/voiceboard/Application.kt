@@ -18,6 +18,7 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
@@ -110,30 +111,114 @@ fun Application.module() {
 
             val graphState = graphStateManager.getOrCreate(userId)
 
+            var audioChannel: Channel<ByteArray>? = null
+            val transcriptBuffer = StringBuilder()
+
             try {
                 for (frame in incoming) {
                     when (frame) {
                         is Frame.Binary -> {
                             val audioData = frame.data
-                            logger.info("Received complete audio, size: ${audioData.size} bytes")
+                            logger.info("Received audio chunk, size: ${audioData.size} bytes")
 
-                            // Transcribe using pre-recorded API
-                            launch {
-                                try {
-                                    val transcript = deepgramClient.transcribeAudio(audioData)
-                                    logger.info("Transcript: '$transcript'")
+                            // Initialize streaming on first chunk
+                            if (audioChannel == null) {
+                                logger.info("Starting audio streaming session")
+                                val newChannel = Channel<ByteArray>(Channel.UNLIMITED)
+                                audioChannel = newChannel
+                                transcriptBuffer.clear()
 
-                                    if (transcript.isNotBlank()) {
-                                        // Send transcript to client
-                                        send(Frame.Text(transcript))
+                                // Start Deepgram streaming in background
+                                launch {
+                                    try {
+                                        deepgramClient.streamAudio(newChannel) { transcript, isFinal ->
+                                            logger.info("Received transcript (final=$isFinal): '$transcript'")
 
-                                        // Get commands from Groq
+                                            // Buffer final transcripts for Groq
+                                            if (isFinal) {
+                                                transcriptBuffer.append(transcript).append(" ")
+                                            }
+
+                                            // Send transcripts to client with marker
+                                            // Format: "INTERIM:text" or "FINAL:text"
+                                            val prefix = if (isFinal) "FINAL:" else "INTERIM:"
+                                            send(Frame.Text("$prefix$transcript"))
+                                        }
+                                        logger.info("Deepgram streaming ended")
+                                    } catch (e: Exception) {
+                                        logger.error("Error in Deepgram streaming", e)
+                                        send(Frame.Text("ERROR: Transcription failed - ${e.message ?: "please try again"}"))
+                                    }
+                                }
+                            }
+
+                            // Send audio chunk to Deepgram
+                            audioChannel.send(audioData)
+                        }
+                        is Frame.Text -> {
+                            val text = frame.readText()
+                            logger.info("Received text message: $text")
+
+                            if (text == "STOP_RECORDING") {
+                                logger.info("Stop recording requested")
+
+                                // Close audio channel to signal end of stream
+                                audioChannel?.close()
+
+                                // Wait for Deepgram to finish processing final audio chunks
+                                kotlinx.coroutines.delay(2000)
+
+                                val fullTranscript = transcriptBuffer.toString().trim()
+                                logger.info("Full transcript: '$fullTranscript'")
+
+                                if (fullTranscript.isNotBlank()) {
+                                    // Process with Groq - stream and buffer response
+                                    launch {
                                         try {
                                             val graphSummary = graphState.toSummary()
                                             logger.info("Current graph: $graphSummary")
 
-                                            val sketchResponse = groqClient.getCommands(graphSummary, transcript)
-                                            logger.info("Got ${sketchResponse.actions.size} actions from Groq")
+                                            val jsonBuffer = StringBuilder()
+
+                                            // Stream Groq response and buffer
+                                            groqClient.streamCommands(graphSummary, fullTranscript).collect { chunk ->
+                                                jsonBuffer.append(chunk)
+                                            }
+
+                                            val fullJson = jsonBuffer.toString()
+                                            logger.info("Complete Groq response: $fullJson")
+
+                                            // Parse the complete JSON response
+                                            val cleanedContent = when {
+                                                fullJson.contains("```json") -> {
+                                                    val start = fullJson.indexOf("```json") + 7
+                                                    val end = fullJson.indexOf("```", start)
+                                                    if (end > start) fullJson.substring(start, end).trim()
+                                                    else fullJson.trim()
+                                                }
+                                                fullJson.contains("```") -> {
+                                                    val start = fullJson.indexOf("```") + 3
+                                                    val end = fullJson.indexOf("```", start)
+                                                    if (end > start) fullJson.substring(start, end).trim()
+                                                    else fullJson.trim()
+                                                }
+                                                fullJson.contains("{") -> {
+                                                    val start = fullJson.indexOf("{")
+                                                    val end = fullJson.lastIndexOf("}") + 1
+                                                    if (end > start) fullJson.substring(start, end).trim()
+                                                    else fullJson.trim()
+                                                }
+                                                else -> fullJson.trim()
+                                            }
+
+                                            val sketchResponse = if (cleanedContent.trimStart().startsWith("[")) {
+                                                val actions = Json.decodeFromString<List<com.voiceboard.features.ai.SketchAction>>(cleanedContent)
+                                                SketchResponse(actions)
+                                            } else {
+                                                Json.decodeFromString<SketchResponse>(cleanedContent)
+                                            }
+
+                                            logger.info("Parsed ${sketchResponse.actions.size} actions from Groq")
 
                                             // Apply actions to graph state
                                             sketchResponse.actions.forEach { action ->
@@ -145,39 +230,36 @@ fun Application.module() {
                                                 }
                                             }
 
-                                            // Send JSON commands to client
+                                            // Send complete JSON to client
                                             val jsonResponse = Json.encodeToString(SketchResponse.serializer(), sketchResponse)
                                             send(Frame.Text(jsonResponse))
                                             logger.info("Sent sketch commands to client")
+
+                                            // Reset for next recording
+                                            audioChannel = null
+                                            transcriptBuffer.clear()
                                         } catch (e: Exception) {
-                                            logger.error("Error processing transcript with Groq", e)
-                                            // Send error to client
+                                            logger.error("Error processing with Groq", e)
                                             send(Frame.Text("ERROR: Failed to generate diagram - ${e.message ?: "please try again"}"))
+
+                                            // Reset state
+                                            audioChannel = null
+                                            transcriptBuffer.clear()
                                         }
-                                    } else {
-                                        logger.warn("Empty transcript received")
-                                        send(Frame.Text("ERROR: No speech detected - please speak clearly"))
                                     }
-                                } catch (e: IllegalArgumentException) {
-                                    logger.error("Invalid audio: ${e.message}")
-                                    send(Frame.Text("ERROR: ${e.message}"))
-                                } catch (e: IllegalStateException) {
-                                    logger.error("Transcription error: ${e.message}")
-                                    send(Frame.Text("ERROR: ${e.message}"))
-                                } catch (e: Exception) {
-                                    logger.error("Error transcribing audio", e)
-                                    send(Frame.Text("ERROR: Transcription failed - please try again"))
+                                } else {
+                                    logger.warn("Empty transcript")
+                                    send(Frame.Text("ERROR: No speech detected - please speak clearly"))
+                                    audioChannel = null
+                                    transcriptBuffer.clear()
                                 }
                             }
-                        }
-                        is Frame.Text -> {
-                            val text = frame.readText()
-                            logger.debug("Received text message: $text")
                         }
                         else -> {}
                     }
                 }
             } finally {
+                audioChannel?.close()
                 graphStateManager.remove(userId)
                 logger.info("User $userId disconnected from WebSocket")
             }
