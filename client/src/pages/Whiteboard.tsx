@@ -232,6 +232,49 @@ export function Whiteboard() {
     }
   };
 
+  // Sync manual canvas edits back to graph state
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleChange = () => {
+      const currentShapes = editor.getCurrentPageShapes();
+      const graphState = graphStateRef.current;
+
+      // Get IDs of shapes currently on canvas (excluding arrows and frames)
+      const canvasNodeIds = new Set(
+        currentShapes
+          .filter((s) => s.type === 'diagram-node' || s.type === 'text' || s.type === 'note')
+          .map((s) => s.id.replace('shape:', ''))
+      );
+
+      // Remove nodes from graph state that are no longer on canvas
+      const nodesToRemove: string[] = [];
+      for (const [nodeId] of graphState.nodes) {
+        if (!canvasNodeIds.has(nodeId)) {
+          nodesToRemove.push(nodeId);
+        }
+      }
+
+      nodesToRemove.forEach((nodeId) => {
+        console.log('Syncing deletion of node:', nodeId);
+        graphState.nodes.delete(nodeId);
+        // Also remove connected edges
+        for (const [edgeId, edge] of graphState.edges) {
+          if (edge.sourceId === nodeId || edge.targetId === nodeId) {
+            graphState.edges.delete(edgeId);
+          }
+        }
+      });
+    };
+
+    // Listen to history changes (undo/redo/delete/etc)
+    const dispose = editor.store.listen(handleChange, { scope: 'document', source: 'user' });
+
+    return () => {
+      dispose();
+    };
+  }, [editor]);
+
   // Handle sketch commands and render
   useEffect(() => {
     console.log('Sketch commands effect running, commands:', sketchCommands, 'editor:', editor);
