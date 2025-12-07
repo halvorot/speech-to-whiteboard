@@ -109,6 +109,8 @@ describe('graphLayout', () => {
     it('adds edge between nodes', () => {
       // Arrange
       const state = createGraphState();
+      state.nodes.set('node1', { id: 'node1', label: 'Node 1', description: '', type: 'server' });
+      state.nodes.set('node2', { id: 'node2', label: 'Node 2', description: '', type: 'database' });
       const action: SketchAction = {
         action: 'create_edge',
         source_id: 'node1',
@@ -131,6 +133,8 @@ describe('graphLayout', () => {
     it('supports bidirectional edges', () => {
       // Arrange
       const state = createGraphState();
+      state.nodes.set('node1', { id: 'node1', label: 'Node 1', description: '', type: 'server' });
+      state.nodes.set('node2', { id: 'node2', label: 'Node 2', description: '', type: 'database' });
       const action: SketchAction = {
         action: 'create_edge',
         source_id: 'node1',

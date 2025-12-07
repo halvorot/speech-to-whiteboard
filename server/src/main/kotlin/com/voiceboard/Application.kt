@@ -165,8 +165,8 @@ fun Application.module() {
                                 // Close audio channel to signal end of stream
                                 audioChannel?.close()
 
-                                // Wait a bit for final transcripts
-                                kotlinx.coroutines.delay(500)
+                                // Wait for Deepgram to finish processing final audio chunks
+                                kotlinx.coroutines.delay(2000)
 
                                 val fullTranscript = transcriptBuffer.toString().trim()
                                 logger.info("Full transcript: '$fullTranscript'")

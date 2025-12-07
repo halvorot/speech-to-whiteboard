@@ -29,6 +29,7 @@ export function Whiteboard() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const hasConnectedRef = useRef(false);
   const statusTimeoutRef = useRef<number | null>(null);
+  const isRecordingRef = useRef(false);
 
   console.log('Whiteboard render - lastTranscript:', lastTranscript, 'sketchCommands:', sketchCommands);
 
@@ -130,7 +131,7 @@ export function Whiteboard() {
         }
 
         // Change status when not recording (no toast for transcripts - shown in header)
-        if (!isRecording) {
+        if (!isRecordingRef.current) {
           setAppStatus('generating');
         }
       }
@@ -178,6 +179,7 @@ export function Whiteboard() {
     try {
       clearStatusTimeout(); // Clear any existing timeout
       setIsRecording(true);
+      isRecordingRef.current = true;
       setAppStatus('transcribing');
       setFinalTranscripts([]); // Clear final transcripts for new recording
       setCurrentInterim(''); // Clear interim transcript
@@ -210,6 +212,7 @@ export function Whiteboard() {
         // Send stop signal to backend
         if (wsRef.current?.readyState === WebSocket.OPEN) {
           console.log('Sending STOP_RECORDING signal');
+          setAppStatus('generating'); // Show processing status
           wsRef.current.send('STOP_RECORDING');
           // Start timeout for response
           startStatusTimeout();
@@ -227,6 +230,7 @@ export function Whiteboard() {
     } catch (error) {
       console.error('Error starting recording:', error);
       setIsRecording(false);
+      isRecordingRef.current = false;
       setAppStatus('error');
       addToast('error', 'Failed to start recording');
     }
@@ -239,6 +243,7 @@ export function Whiteboard() {
       mediaRecorderRef.current = null;
     }
     setIsRecording(false);
+    isRecordingRef.current = false;
     console.log('Recording stopped');
   };
 
@@ -267,8 +272,11 @@ export function Whiteboard() {
     if (sketchCommands.actions.length === 0) {
       console.log('No actions to perform');
       clearStatusTimeout();
-      setAppStatus('idle');
-      addToast('info', 'No matching items found - could not understand the command');
+      // Defer state updates to avoid synchronous setState in effect
+      setTimeout(() => {
+        setAppStatus('idle');
+        addToast('info', 'No matching items found - could not understand the command');
+      }, 0);
       return;
     }
 
