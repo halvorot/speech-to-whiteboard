@@ -15,6 +15,8 @@ export type NodeType =
   | 'process'
   | 'data'
   | 'frame'
+  | 'text'
+  | 'note'
   // Legacy types
   | 'database'
   | 'server'
@@ -33,6 +35,7 @@ export interface SketchAction {
   target_id?: string;
   bidirectional?: boolean;
   parent_id?: string;
+  color?: string;
 }
 
 export interface SketchResponse {

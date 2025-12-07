@@ -39,6 +39,18 @@ data class GroqResponse(
     val choices: List<GroqChoice>
 )
 
+@Serializable
+data class GroqError(
+    val error: GroqErrorDetail
+)
+
+@Serializable
+data class GroqErrorDetail(
+    val message: String,
+    val type: String? = null,
+    val code: String? = null
+)
+
 class GroqClient(
     private val apiKey: String,
     private val client: HttpClient
@@ -47,9 +59,7 @@ class GroqClient(
     private val json = Json { ignoreUnknownKeys = true }
     private val baseUrl = "https://api.groq.com/openai/v1/chat/completions"
 
-    private val systemPrompt: String by lazy {
-        loadSystemPrompt()
-    }
+    private val systemPrompt: String = loadSystemPrompt()
 
     private fun loadSystemPrompt(): String {
         return try {
@@ -88,6 +98,39 @@ class GroqClient(
             }
 
             logger.info("Groq response status: ${response.status}")
+
+            val text = response.bodyAsText()
+
+            // Check for error responses
+            if (!response.status.isSuccess()) {
+                val errorResponse = try {
+                    json.decodeFromString<GroqError>(text)
+                } catch (e: Exception) {
+                    logger.error("Failed to parse Groq streaming error: $text")
+                    null
+                }
+
+                if (errorResponse != null) {
+                    val errorMsg = errorResponse.error.message
+                    logger.error("Error from Groq: $errorMsg")
+
+                    // Handle rate limit errors specially
+                    if (errorResponse.error.code == "rate_limit_exceeded") {
+                        val retryTimeRegex = """try again in (\d+[hms.]+)""".toRegex()
+                        val retryTime = retryTimeRegex.find(errorMsg)?.groupValues?.get(1)?.replace(".072s", "s")
+
+                        if (retryTime != null) {
+                            throw IllegalStateException("AI model rate limit reached. Please try again in $retryTime")
+                        } else {
+                            throw IllegalStateException("AI model rate limit reached. Please try again later")
+                        }
+                    }
+
+                    throw IllegalStateException("AI service error: $errorMsg")
+                } else {
+                    throw IllegalStateException("AI service error (status ${response.status.value})")
+                }
+            }
 
             val channel: ByteReadChannel = response.bodyAsChannel()
             var tokenCount = 0
@@ -148,7 +191,50 @@ class GroqClient(
                 setBody(request)
             }
 
-            val groqResponse = json.decodeFromString<GroqResponse>(response.bodyAsText())
+            val responseBody = response.bodyAsText()
+
+            // Check for error responses
+            if (!response.status.isSuccess()) {
+                val errorResponse = try {
+                    json.decodeFromString<GroqError>(responseBody)
+                } catch (e: Exception) {
+                    logger.error("Failed to parse Groq error response: $responseBody")
+                    null
+                }
+
+                if (errorResponse != null) {
+                    val errorMsg = errorResponse.error.message
+                    logger.error("Error from Groq: $errorMsg")
+
+                    // Handle rate limit errors specially
+                    if (errorResponse.error.code == "rate_limit_exceeded") {
+                        // Extract retry time from message like "Please try again in 4m39.072s"
+                        val retryTimeRegex = """try again in (\d+[hms.]+)""".toRegex()
+                        val retryTime = retryTimeRegex.find(errorMsg)?.groupValues?.get(1)?.replace(".072s", "s")
+
+                        if (retryTime != null) {
+                            throw IllegalStateException("AI model rate limit reached. Please try again in $retryTime")
+                        } else {
+                            throw IllegalStateException("AI model rate limit reached. Please try again later")
+                        }
+                    }
+
+                    // Generic error
+                    throw IllegalStateException("AI service error: $errorMsg")
+                } else {
+                    throw IllegalStateException("AI service error (status ${response.status.value})")
+                }
+            }
+
+            // Try to parse as normal response
+            val groqResponse = try {
+                json.decodeFromString<GroqResponse>(responseBody)
+            } catch (e: Exception) {
+                // Log the actual response for debugging
+                logger.error("Failed to parse Groq response: $responseBody")
+                throw IllegalStateException("Invalid response from Groq API: ${e.message}")
+            }
+
             val content = groqResponse.choices.firstOrNull()?.message?.content
                 ?: throw IllegalStateException("No response from Groq")
 
