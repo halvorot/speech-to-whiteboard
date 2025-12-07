@@ -10,6 +10,7 @@ export interface GraphNode {
   description: string;
   type: NodeType;
   parentId?: string;
+  color?: string;
 }
 
 export interface GraphEdge {
@@ -34,6 +35,7 @@ export interface LayoutNode {
   width: number;
   height: number;
   parentId?: string;
+  color?: string;
 }
 
 export interface LayoutEdge {
@@ -51,6 +53,17 @@ export interface LayoutResult {
 // Node dimensions
 const NODE_WIDTH = 200;
 const NODE_HEIGHT = 100;
+const TEXT_WIDTH = 300;
+const TEXT_HEIGHT = 150;
+const NOTE_WIDTH = 250;
+const NOTE_HEIGHT = 200;
+
+// Get dimensions based on node type
+function getNodeDimensions(type: NodeType): { width: number; height: number } {
+  if (type === 'text') return { width: TEXT_WIDTH, height: TEXT_HEIGHT };
+  if (type === 'note') return { width: NOTE_WIDTH, height: NOTE_HEIGHT };
+  return { width: NODE_WIDTH, height: NODE_HEIGHT };
+}
 
 export function createGraphState(): GraphState {
   return {
@@ -69,6 +82,7 @@ export function applyAction(state: GraphState, action: SketchAction): boolean {
           description: action.description || '',
           type: action.type,
           parentId: action.parent_id,
+          color: action.color,
         });
         return true;
       }
@@ -83,6 +97,7 @@ export function applyAction(state: GraphState, action: SketchAction): boolean {
           description: action.description !== undefined ? action.description : existing.description,
           type: action.type || existing.type,
           parentId: action.parent_id !== undefined ? action.parent_id : existing.parentId,
+          color: action.color !== undefined ? action.color : existing.color,
         });
         return true;
       }
@@ -161,24 +176,30 @@ export async function layoutGraph(state: GraphState): Promise<LayoutResult> {
         'elk.direction': 'RIGHT',
         'elk.spacing.nodeNode': '40',
       },
-      children: children.map((n) => ({
-        id: n.id,
-        width: NODE_WIDTH,
-        height: NODE_HEIGHT,
-        labels: [{ text: n.label }],
-      })),
+      children: children.map((n) => {
+        const dims = getNodeDimensions(n.type);
+        return {
+          id: n.id,
+          width: dims.width,
+          height: dims.height,
+          labels: [{ text: n.label }],
+        };
+      }),
     };
   });
 
   // Top-level nodes (not in any frame)
   const topLevelNodes: ElkNode[] = regularNodes
     .filter((n) => !n.parentId)
-    .map((n) => ({
-      id: n.id,
-      width: NODE_WIDTH,
-      height: NODE_HEIGHT,
-      labels: [{ text: n.label }],
-    }));
+    .map((n) => {
+      const dims = getNodeDimensions(n.type);
+      return {
+        id: n.id,
+        width: dims.width,
+        height: dims.height,
+        labels: [{ text: n.label }],
+      };
+    });
 
   const elkEdges = Array.from(state.edges.values()).map((edge) => ({
     id: edge.id,
@@ -220,6 +241,7 @@ export async function layoutGraph(state: GraphState): Promise<LayoutResult> {
         width: node.width || NODE_WIDTH,
         height: node.height || NODE_HEIGHT,
         parentId: original.parentId,
+        color: original.color,
       });
 
       // Recursively extract children (they'll have positions relative to this node)

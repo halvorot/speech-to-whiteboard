@@ -49,6 +49,68 @@ describe('graphLayout', () => {
       expect(applyAction(state, actionNoType)).toBe(false);
       expect(state.nodes.size).toBe(0);
     });
+
+    it('creates text node with color', () => {
+      // Arrange
+      const state = createGraphState();
+      const action: SketchAction = {
+        action: 'create_node',
+        id: 'text1',
+        label: 'Title',
+        description: 'Description text',
+        type: 'text',
+      };
+
+      // Act
+      const result = applyAction(state, action);
+
+      // Assert
+      expect(result).toBe(true);
+      expect(state.nodes.size).toBe(1);
+      expect(state.nodes.get('text1')?.type).toBe('text');
+      expect(state.nodes.get('text1')?.label).toBe('Title');
+    });
+
+    it('creates note node with color', () => {
+      // Arrange
+      const state = createGraphState();
+      const action: SketchAction = {
+        action: 'create_node',
+        id: 'note1',
+        label: 'TODO',
+        description: 'Remember to do this',
+        type: 'note',
+        color: 'yellow',
+      };
+
+      // Act
+      const result = applyAction(state, action);
+
+      // Assert
+      expect(result).toBe(true);
+      expect(state.nodes.size).toBe(1);
+      expect(state.nodes.get('note1')?.type).toBe('note');
+      expect(state.nodes.get('note1')?.color).toBe('yellow');
+    });
+
+    it('creates note with different colors', () => {
+      // Arrange
+      const state = createGraphState();
+      const actions: SketchAction[] = [
+        { action: 'create_node', id: 'note1', label: 'Yellow', type: 'note', color: 'yellow' },
+        { action: 'create_node', id: 'note2', label: 'Pink', type: 'note', color: 'pink' },
+        { action: 'create_node', id: 'note3', label: 'Blue', type: 'note', color: 'blue' },
+      ];
+
+      // Act
+      actions.forEach((action) => applyAction(state, action));
+
+      // Assert
+      expect(state.nodes.size).toBe(3);
+      expect(state.nodes.get('note1')?.color).toBe('yellow');
+      expect(state.nodes.get('note2')?.color).toBe('pink');
+      expect(state.nodes.get('note3')?.color).toBe('blue');
+    });
   });
 
   describe('applyAction - update_node', () => {
@@ -82,6 +144,31 @@ describe('graphLayout', () => {
 
       // Assert
       expect(result).toBe(false);
+    });
+
+    it('updates note color', () => {
+      // Arrange
+      const state = createGraphState();
+      state.nodes.set('note1', {
+        id: 'note1',
+        label: 'Note',
+        description: 'Desc',
+        type: 'note',
+        color: 'yellow',
+      });
+      const action: SketchAction = {
+        action: 'update_node',
+        id: 'note1',
+        color: 'pink',
+      };
+
+      // Act
+      const result = applyAction(state, action);
+
+      // Assert
+      expect(result).toBe(true);
+      expect(state.nodes.get('note1')?.color).toBe('pink');
+      expect(state.nodes.get('note1')?.label).toBe('Note');
     });
   });
 

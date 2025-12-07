@@ -27,6 +27,8 @@ const ICONS: Record<NodeType, string> = {
   process: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"/></svg>`,
   data: `<svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.657 4.03 3 9 3s9-1.343 9-3V5"/></svg>`,
   frame: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>`,
+  text: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 6H3M21 12H8M11 18H3"/></svg>`,
+  note: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M13 2v7h7"/></svg>`,
   unknown: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
 };
 
@@ -59,6 +61,10 @@ const NODE_COLORS: Record<NodeType, TLDefaultColorStyle> = {
   // Decisions - Yellow family
   diamond: 'yellow',
 
+  // Text and notes
+  text: 'grey',
+  note: 'yellow',
+
   // Generic
   circle: 'grey',
   frame: 'grey',
@@ -88,6 +94,10 @@ const SOLID_COLORS: Record<NodeType, string> = {
 
   // Decisions - Yellow (distinct)
   diamond: '#facc15',     // Yellow
+
+  // Text and notes
+  text: '#e5e7eb',        // Light grey
+  note: '#fef08a',        // Light yellow
 
   // Generic
   circle: '#d1d5db',

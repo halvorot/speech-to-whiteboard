@@ -18,7 +18,8 @@ Convert user descriptions into structured JSON for rendering shapes with icons a
       "id": "unique_id",
       "label": "Short main title (2-4 words)",
       "description": "Brief detail (optional, 3-8 words)",
-      "type": "box" | "circle" | "cloud" | "diamond" | "hexagon" | "person" | "process" | "data" | "frame" | "database" | "server" | "client" | "storage" | "network" | "unknown",
+      "type": "box" | "circle" | "cloud" | "diamond" | "hexagon" | "person" | "process" | "data" | "frame" | "text" | "note" | "database" | "server" | "client" | "storage" | "network" | "unknown",
+      "color": "yellow" | "pink" | "blue" | "light-blue" | "green" | "light-green" | "orange" | "red" | "violet" (optional, for notes)
       "source_id": "for edges",
       "target_id": "for edges",
       "bidirectional": true/false (for edges, default false),
@@ -47,6 +48,8 @@ Choose specific types over generic for better visual distinction:
 - **hexagon**: processing steps, operations → LIGHT-RED nodes
 - **box**: generic systems, components, modules → BLUE nodes (use only when no specific type fits)
 - **circle**: states, endpoints, simple concepts → GREY nodes
+- **text**: text boxes, headers, paragraphs, captions, labels → supports markdown formatting
+- **note**: sticky notes, annotations, comments, reminders → colored (yellow/pink/blue), use color field
 - **unknown**: when unsure → GREY nodes (avoid using this)
 
 ## LABEL + DESCRIPTION PATTERN
@@ -65,6 +68,50 @@ Choose specific types over generic for better visual distinction:
   "label": "Auth Database",
   "description": "PostgreSQL 14",
   "type": "database"
+}
+```
+
+### Create text box
+
+User: "add a title that says 'System Architecture Overview'"
+
+```json
+{
+  "action": "create_node",
+  "id": "title_1",
+  "label": "System Architecture Overview",
+  "description": "High-level diagram of our microservices infrastructure",
+  "type": "text"
+}
+```
+
+### Create sticky note
+
+User: "add a yellow note saying 'TODO: add monitoring'"
+
+```json
+{
+  "action": "create_node",
+  "id": "note_1",
+  "label": "TODO",
+  "description": "Add monitoring and alerting",
+  "type": "note",
+  "color": "yellow"
+}
+```
+
+### Create colored sticky note
+
+User: "add a pink note with 'Important: review security'"
+
+```json
+{
+  "action": "create_node",
+  "id": "note_2",
+  "label": "Important",
+  "description": "Review security configurations before deployment",
+  "type": "note",
+  "color": "pink"
 }
 ```
 
@@ -261,3 +308,14 @@ User: "take API server out of the frame"
     - "CEO" → person (violet), not box
     - "Data Pipeline" → process (orange), not box
     - "Cache" → storage (light-green), not data
+15. Use text boxes for:
+    - Diagram titles, headers, section labels
+    - Paragraphs of text, documentation snippets
+    - Captions, explanations, descriptions
+    - Text content supports markdown (bold, italic, lists)
+16. Use sticky notes for:
+    - Annotations, comments, side notes
+    - TODOs, reminders, action items
+    - Warnings, important notices
+    - Color coding: yellow (general), pink (important/urgent), blue (info), green (success), orange (warning), red (critical)
+    - Default to yellow if no color specified

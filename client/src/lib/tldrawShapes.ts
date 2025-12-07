@@ -1,4 +1,4 @@
-import { type Editor } from 'tldraw';
+import { type Editor, toRichText } from 'tldraw';
 import type { LayoutNode, LayoutEdge } from './graphLayout';
 import { getShapeId, getArrowId } from './graphLayout';
 import { getNodeColor } from './DiagramNodeShape';
@@ -104,25 +104,59 @@ export function renderLayout(editor: Editor, nodes: LayoutNode[], edges: LayoutE
     const shapeId = getShapeId(node.id);
     const parentId = node.parentId ? getShapeId(node.parentId) : undefined;
 
-    // Always use semantic color based on node type
-    const nodeColor = getNodeColor(node.type);
-
     try {
-      editor.createShape({
-        type: 'diagram-node',
-        id: shapeId,
-        x: node.x,
-        y: node.y,
-        props: {
-          w: node.width,
-          h: node.height,
-          color: nodeColor,
-          nodeType: node.type,
-          label: node.label,
-          description: node.description || '',
-        },
-        parentId,
-      });
+      // Handle text boxes (native tldraw text shape)
+      if (node.type === 'text') {
+        const text = node.description ? `${node.label}\n\n${node.description}` : node.label;
+        editor.createShape({
+          type: 'text',
+          id: shapeId,
+          x: node.x,
+          y: node.y,
+          props: {
+            richText: toRichText(text),
+            w: node.width,
+            scale: 1.2,
+            autoSize: false,
+          },
+          parentId,
+        });
+      }
+      // Handle sticky notes (native tldraw note shape)
+      else if (node.type === 'note') {
+        const text = node.description ? `${node.label}\n\n${node.description}` : node.label;
+        const noteColor = node.color || 'yellow';
+        editor.createShape({
+          type: 'note',
+          id: shapeId,
+          x: node.x,
+          y: node.y,
+          props: {
+            richText: toRichText(text),
+            color: noteColor,
+          },
+          parentId,
+        });
+      }
+      // Handle regular diagram nodes
+      else {
+        const nodeColor = getNodeColor(node.type);
+        editor.createShape({
+          type: 'diagram-node',
+          id: shapeId,
+          x: node.x,
+          y: node.y,
+          props: {
+            w: node.width,
+            h: node.height,
+            color: nodeColor,
+            nodeType: node.type,
+            label: node.label,
+            description: node.description || '',
+          },
+          parentId,
+        });
+      }
     } catch (error) {
       console.error(`Failed to create shape for node ${node.id}:`, error);
     }
