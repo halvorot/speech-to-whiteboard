@@ -19,7 +19,9 @@ Convert user descriptions into structured JSON for rendering shapes with icons a
       "label": "Short main title (2-4 words)",
       "description": "Brief detail (optional, 3-8 words)",
       "type": "box" | "circle" | "cloud" | "diamond" | "hexagon" | "person" | "process" | "data" | "frame" | "text" | "note" | "database" | "server" | "client" | "storage" | "network" | "unknown",
-      "color": "yellow" | "pink" | "blue" | "light-blue" | "green" | "light-green" | "orange" | "red" | "violet" (optional, for notes)
+      "color": "yellow" | "pink" | "blue" | "light-blue" | "green" | "light-green" | "orange" | "red" | "violet" (optional, for notes),
+      "position": "above" | "below" | "left" | "right" | "top" | "bottom" | "top-left" | "top-right" | "bottom-left" | "bottom-right" (optional, for text/notes),
+      "relative_to": "node_id" (optional, which node to position relative to. If omitted, position is relative to entire drawing),
       "source_id": "for edges",
       "target_id": "for edges",
       "bidirectional": true/false (for edges, default false),
@@ -112,6 +114,64 @@ User: "add a pink note with 'Important: review security'"
   "description": "Review security configurations before deployment",
   "type": "note",
   "color": "pink"
+}
+```
+
+### Position text/note relative to drawing
+
+User: "add a title above the drawing saying 'System Architecture'"
+
+```json
+{
+  "action": "create_node",
+  "id": "title_1",
+  "label": "System Architecture",
+  "type": "text",
+  "position": "above"
+}
+```
+
+User: "add a note to the right saying 'TODO: add caching'"
+
+```json
+{
+  "action": "create_node",
+  "id": "note_3",
+  "label": "TODO",
+  "description": "Add caching layer",
+  "type": "note",
+  "color": "yellow",
+  "position": "right"
+}
+```
+
+### Position text/note relative to specific node
+
+User: "add a heading above the server that says 'Backend Services'"
+
+```json
+{
+  "action": "create_node",
+  "id": "heading_1",
+  "label": "Backend Services",
+  "type": "text",
+  "position": "above",
+  "relative_to": "web_server"
+}
+```
+
+User: "add a pink note below the database saying 'Critical: needs backup'"
+
+```json
+{
+  "action": "create_node",
+  "id": "note_4",
+  "label": "Critical",
+  "description": "Needs daily backup",
+  "type": "note",
+  "color": "pink",
+  "position": "below",
+  "relative_to": "main_db"
 }
 ```
 
@@ -300,6 +360,11 @@ User: "take API server out of the frame"
     - When creating frame: create it BEFORE nodes, set parent_id on child nodes
     - To move node into frame: use update_node with parent_id
     - To remove from frame: use update_node with parent_id: null
+    - **CRITICAL EDGE RULES:**
+      * NEVER create edges to/from frames themselves - frames are containers, not nodes
+      * Edges CAN cross hierarchy boundaries (outside frame → inside frame) - this is normal and allowed
+      * Example ALLOWED: CEO (outside) → Dev Lead (inside Dev Team frame)
+      * Example NOT ALLOWED: CTO → Dev Team (frame itself)
     - Default: NO frames unless necessary
 14. Choose SPECIFIC types over generic (box, circle) for visual color variety:
     - "API" → server (blue), not box
@@ -319,3 +384,9 @@ User: "take API server out of the frame"
     - Warnings, important notices
     - Color coding: yellow (general), pink (important/urgent), blue (info), green (success), orange (warning), red (critical)
     - Default to yellow if no color specified
+17. Position text boxes and notes using position and relative_to fields:
+    - Position values: "above", "below", "left", "right", "top", "bottom", "top-left", "top-right", "bottom-left", "bottom-right"
+    - If relative_to is provided: position is relative to that specific node (e.g., "above the server")
+    - If relative_to is omitted: position is relative to entire drawing (e.g., "to the right of the diagram")
+    - Extract node IDs from user's description (e.g., "above the server" → relative_to: "web_server" if server node exists)
+    - Position keywords: "above/over/on top of" → "above", "below/under/beneath" → "below", "left of/to the left" → "left", "right of/to the right" → "right"

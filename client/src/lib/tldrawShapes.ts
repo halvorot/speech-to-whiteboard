@@ -3,6 +3,120 @@ import type { LayoutNode, LayoutEdge } from './graphLayout';
 import { getShapeId, getArrowId } from './graphLayout';
 import { getNodeColor } from './DiagramNodeShape';
 
+// Check if a line segment intersects with a rectangle
+function lineIntersectsRect(
+  lineStart: { x: number; y: number },
+  lineEnd: { x: number; y: number },
+  rect: { x: number; y: number; width: number; height: number }
+): boolean {
+  // Expand rect slightly for padding
+  const padding = 20;
+  const rectX = rect.x - padding;
+  const rectY = rect.y - padding;
+  const rectW = rect.width + padding * 2;
+  const rectH = rect.height + padding * 2;
+
+  // Check if either endpoint is inside the rectangle
+  const startInside = lineStart.x >= rectX && lineStart.x <= rectX + rectW &&
+                       lineStart.y >= rectY && lineStart.y <= rectY + rectH;
+  const endInside = lineEnd.x >= rectX && lineEnd.x <= rectX + rectW &&
+                     lineEnd.y >= rectY && lineEnd.y <= rectY + rectH;
+
+  if (startInside || endInside) return true;
+
+  // Check if line intersects any of the four edges of the rectangle
+  const edges = [
+    { x1: rectX, y1: rectY, x2: rectX + rectW, y2: rectY }, // top
+    { x1: rectX + rectW, y1: rectY, x2: rectX + rectW, y2: rectY + rectH }, // right
+    { x1: rectX, y1: rectY + rectH, x2: rectX + rectW, y2: rectY + rectH }, // bottom
+    { x1: rectX, y1: rectY, x2: rectX, y2: rectY + rectH }, // left
+  ];
+
+  for (const edge of edges) {
+    if (lineSegmentsIntersect(lineStart, lineEnd, { x: edge.x1, y: edge.y1 }, { x: edge.x2, y: edge.y2 })) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// Check if two line segments intersect
+function lineSegmentsIntersect(
+  p1: { x: number; y: number },
+  p2: { x: number; y: number },
+  p3: { x: number; y: number },
+  p4: { x: number; y: number }
+): boolean {
+  const det = (p2.x - p1.x) * (p4.y - p3.y) - (p4.x - p3.x) * (p2.y - p1.y);
+  if (det === 0) return false; // parallel
+
+  const lambda = ((p4.y - p3.y) * (p4.x - p1.x) + (p3.x - p4.x) * (p4.y - p1.y)) / det;
+  const gamma = ((p1.y - p2.y) * (p4.x - p1.x) + (p2.x - p1.x) * (p4.y - p1.y)) / det;
+
+  return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
+}
+
+// Calculate optimal bend value to avoid colliding nodes
+function calculateOptimalBend(
+  sourceNode: LayoutNode,
+  targetNode: LayoutNode,
+  allNodes: LayoutNode[]
+): number {
+  const sourceCenterX = sourceNode.x + sourceNode.width / 2;
+  const sourceCenterY = sourceNode.y + sourceNode.height / 2;
+  const targetCenterX = targetNode.x + targetNode.width / 2;
+  const targetCenterY = targetNode.y + targetNode.height / 2;
+
+  const lineStart = { x: sourceCenterX, y: sourceCenterY };
+  const lineEnd = { x: targetCenterX, y: targetCenterY };
+
+  // Check for collisions with other nodes (excluding source and target)
+  const collidingNodes = allNodes.filter(
+    (node) => node.id !== sourceNode.id && node.id !== targetNode.id &&
+              lineIntersectsRect(lineStart, lineEnd, node)
+  );
+
+  if (collidingNodes.length === 0) {
+    return 0; // No collision, straight arrow
+  }
+
+  // Calculate bend to avoid collisions
+  // Bend perpendicular to the arrow direction
+  const dx = targetCenterX - sourceCenterX;
+  const dy = targetCenterY - sourceCenterY;
+
+  // Find the node closest to the midpoint of the arrow
+  const midX = (sourceCenterX + targetCenterX) / 2;
+  const midY = (sourceCenterY + targetCenterY) / 2;
+
+  let closestDist = Infinity;
+  let closestNode = collidingNodes[0];
+
+  for (const node of collidingNodes) {
+    const nodeCenterX = node.x + node.width / 2;
+    const nodeCenterY = node.y + node.height / 2;
+    const dist = Math.sqrt((nodeCenterX - midX) ** 2 + (nodeCenterY - midY) ** 2);
+    if (dist < closestDist) {
+      closestDist = dist;
+      closestNode = node;
+    }
+  }
+
+  // Calculate which side to bend (perpendicular direction)
+  const nodeCenterX = closestNode.x + closestNode.width / 2;
+  const nodeCenterY = closestNode.y + closestNode.height / 2;
+
+  // Cross product to determine which side the node is on
+  const cross = dx * (nodeCenterY - sourceCenterY) - dy * (nodeCenterX - sourceCenterX);
+
+  // Bend magnitude: proportional to node size and distance
+  const bendMagnitude = Math.max(closestNode.width, closestNode.height) * 0.8;
+
+  // Bend direction: opposite side of the colliding node
+  return cross > 0 ? -bendMagnitude : bendMagnitude;
+}
+
 // Calculate arrow endpoints on shape edges
 export function calculateEdgePoints(
   sourceNode: LayoutNode,
@@ -69,13 +183,29 @@ export function calculateEdgePoints(
 }
 
 export function renderLayout(editor: Editor, nodes: LayoutNode[], edges: LayoutEdge[]) {
-  // Clear existing shapes
+  // Get existing shapes
   const existingShapes = editor.getCurrentPageShapes();
-  if (existingShapes.length > 0) {
-    editor.deleteShapes(existingShapes.map((s) => s.id));
+  const existingShapeIds = new Set(existingShapes.map((s) => s.id));
+
+  // Get IDs of nodes we're about to render
+  const newNodeIds = new Set(nodes.map((n) => getShapeId(n.id)));
+  const newEdgeIds = new Set(edges.map((e) => getArrowId(e.id)));
+
+  // Delete shapes that are no longer in the graph
+  const shapesToDelete = existingShapes.filter((s) => {
+    if (s.type === 'arrow') {
+      return !newEdgeIds.has(s.id);
+    } else if (s.type === 'diagram-node' || s.type === 'text' || s.type === 'note' || s.type === 'frame') {
+      return !newNodeIds.has(s.id);
+    }
+    return false;
+  });
+
+  if (shapesToDelete.length > 0) {
+    editor.deleteShapes(shapesToDelete.map((s) => s.id));
   }
 
-  // Create frames first (simple native frames)
+  // Create or update frames first (simple native frames)
   const frames = nodes.filter((n) => n.type === 'frame');
   const regularNodes = nodes.filter((n) => n.type !== 'frame');
 
@@ -83,19 +213,35 @@ export function renderLayout(editor: Editor, nodes: LayoutNode[], edges: LayoutE
     const shapeId = getShapeId(frame.id);
 
     try {
-      editor.createShape({
-        type: 'frame',
-        id: shapeId,
-        x: frame.x,
-        y: frame.y,
-        props: {
-          w: frame.width,
-          h: frame.height,
-          name: frame.label,
-        },
-      });
+      if (existingShapeIds.has(shapeId)) {
+        // Update existing frame
+        editor.updateShape({
+          id: shapeId,
+          type: 'frame',
+          x: frame.x,
+          y: frame.y,
+          props: {
+            w: frame.width,
+            h: frame.height,
+            name: frame.label,
+          },
+        });
+      } else {
+        // Create new frame
+        editor.createShape({
+          type: 'frame',
+          id: shapeId,
+          x: frame.x,
+          y: frame.y,
+          props: {
+            w: frame.width,
+            h: frame.height,
+            name: frame.label,
+          },
+        });
+      }
     } catch (error) {
-      console.error(`Failed to create frame for node ${frame.id}:`, error);
+      console.error(`Failed to create/update frame for node ${frame.id}:`, error);
     }
   });
 
@@ -105,60 +251,111 @@ export function renderLayout(editor: Editor, nodes: LayoutNode[], edges: LayoutE
     const parentId = node.parentId ? getShapeId(node.parentId) : undefined;
 
     try {
+      const exists = existingShapeIds.has(shapeId);
+
       // Handle text boxes (native tldraw text shape)
       if (node.type === 'text') {
         const text = node.description ? `${node.label}\n\n${node.description}` : node.label;
-        editor.createShape({
-          type: 'text',
-          id: shapeId,
-          x: node.x,
-          y: node.y,
-          props: {
-            richText: toRichText(text),
-            w: node.width,
-            scale: 1.2,
-            autoSize: false,
-          },
-          parentId,
-        });
+        const existingShape = exists ? editor.getShape(shapeId) : null;
+
+        if (exists && existingShape) {
+          // Update content only, keep position if manually moved
+          editor.updateShape({
+            id: shapeId,
+            type: 'text',
+            props: {
+              richText: toRichText(text),
+            },
+          });
+        } else {
+          // Create new text shape
+          editor.createShape({
+            type: 'text',
+            id: shapeId,
+            x: node.x,
+            y: node.y,
+            props: {
+              richText: toRichText(text),
+              w: node.width,
+              scale: 1.2,
+              autoSize: false,
+            },
+            parentId,
+          });
+        }
       }
       // Handle sticky notes (native tldraw note shape)
       else if (node.type === 'note') {
         const text = node.description ? `${node.label}\n\n${node.description}` : node.label;
         const noteColor = node.color || 'yellow';
-        editor.createShape({
-          type: 'note',
-          id: shapeId,
-          x: node.x,
-          y: node.y,
-          props: {
-            richText: toRichText(text),
-            color: noteColor,
-          },
-          parentId,
-        });
+        const existingShape = exists ? editor.getShape(shapeId) : null;
+
+        if (exists && existingShape) {
+          // Update content only, keep position if manually moved
+          editor.updateShape({
+            id: shapeId,
+            type: 'note',
+            props: {
+              richText: toRichText(text),
+              color: noteColor,
+            },
+          });
+        } else {
+          // Create new note shape
+          editor.createShape({
+            type: 'note',
+            id: shapeId,
+            x: node.x,
+            y: node.y,
+            props: {
+              richText: toRichText(text),
+              color: noteColor,
+            },
+            parentId,
+          });
+        }
       }
       // Handle regular diagram nodes
       else {
         const nodeColor = getNodeColor(node.type);
-        editor.createShape({
-          type: 'diagram-node',
-          id: shapeId,
-          x: node.x,
-          y: node.y,
-          props: {
-            w: node.width,
-            h: node.height,
-            color: nodeColor,
-            nodeType: node.type,
-            label: node.label,
-            description: node.description || '',
-          },
-          parentId,
-        });
+
+        if (exists) {
+          // Update existing node
+          editor.updateShape({
+            id: shapeId,
+            type: 'diagram-node',
+            x: node.x,
+            y: node.y,
+            props: {
+              w: node.width,
+              h: node.height,
+              color: nodeColor,
+              nodeType: node.type,
+              label: node.label,
+              description: node.description || '',
+            },
+          });
+        } else {
+          // Create new node
+          editor.createShape({
+            type: 'diagram-node',
+            id: shapeId,
+            x: node.x,
+            y: node.y,
+            props: {
+              w: node.width,
+              h: node.height,
+              color: nodeColor,
+              nodeType: node.type,
+              label: node.label,
+              description: node.description || '',
+            },
+            parentId,
+          });
+        }
       }
     } catch (error) {
-      console.error(`Failed to create shape for node ${node.id}:`, error);
+      console.error(`Failed to create/update shape for node ${node.id}:`, error);
     }
   });
 
@@ -176,7 +373,10 @@ export function renderLayout(editor: Editor, nodes: LayoutNode[], edges: LayoutE
         // Calculate initial positions
         const { startX, startY, endX, endY } = calculateEdgePoints(sourceNode, targetNode);
 
-        // Create arrow with coordinate-based terminals
+        // Calculate optimal bend to avoid collisions
+        const bend = calculateOptimalBend(sourceNode, targetNode, nodes);
+
+        // Create arrow with coordinate-based terminals and bend
         editor.createShape({
           type: 'arrow',
           id: arrowId,
@@ -185,6 +385,7 @@ export function renderLayout(editor: Editor, nodes: LayoutNode[], edges: LayoutE
           props: {
             start: { x: 0, y: 0 },
             end: { x: endX - startX, y: endY - startY },
+            bend,
             arrowheadStart: edge.bidirectional ? 'arrow' : 'none',
             arrowheadEnd: 'arrow',
           },

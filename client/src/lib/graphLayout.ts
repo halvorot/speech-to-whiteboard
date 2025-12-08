@@ -11,6 +11,8 @@ export interface GraphNode {
   type: NodeType;
   parentId?: string;
   color?: string;
+  position?: string;
+  relativeTo?: string;
 }
 
 export interface GraphEdge {
@@ -36,6 +38,8 @@ export interface LayoutNode {
   height: number;
   parentId?: string;
   color?: string;
+  position?: string;
+  relativeTo?: string;
 }
 
 export interface LayoutEdge {
@@ -54,9 +58,9 @@ export interface LayoutResult {
 const NODE_WIDTH = 200;
 const NODE_HEIGHT = 100;
 const TEXT_WIDTH = 300;
-const TEXT_HEIGHT = 150;
-const NOTE_WIDTH = 250;
-const NOTE_HEIGHT = 200;
+const TEXT_HEIGHT = 100;
+const NOTE_WIDTH = 200;
+const NOTE_HEIGHT = 150;
 
 // Get dimensions based on node type
 function getNodeDimensions(type: NodeType): { width: number; height: number } {
@@ -83,6 +87,8 @@ export function applyAction(state: GraphState, action: SketchAction): boolean {
           type: action.type,
           parentId: action.parent_id,
           color: action.color,
+          position: action.position,
+          relativeTo: action.relative_to,
         });
         return true;
       }
@@ -98,6 +104,8 @@ export function applyAction(state: GraphState, action: SketchAction): boolean {
           type: action.type || existing.type,
           parentId: action.parent_id !== undefined ? action.parent_id : existing.parentId,
           color: action.color !== undefined ? action.color : existing.color,
+          position: action.position !== undefined ? action.position : existing.position,
+          relativeTo: action.relative_to !== undefined ? action.relative_to : existing.relativeTo,
         });
         return true;
       }
@@ -160,9 +168,16 @@ export function applyAction(state: GraphState, action: SketchAction): boolean {
 export async function layoutGraph(state: GraphState): Promise<LayoutResult> {
   const nodesArray = Array.from(state.nodes.values());
   const frames = nodesArray.filter((n) => n.type === 'frame');
-  const regularNodes = nodesArray.filter((n) => n.type !== 'frame');
 
-  // Build ELK nodes with hierarchy
+  // Separate positioned nodes (text/notes with position hints) from regular nodes
+  const positionedNodes = nodesArray.filter((n) =>
+    n.type !== 'frame' && n.position
+  );
+  const regularNodes = nodesArray.filter((n) =>
+    n.type !== 'frame' && !n.position
+  );
+
+  // Build ELK nodes with hierarchy (frames contain their children)
   const elkFrames: ElkNode[] = frames.map((frame) => {
     const children = regularNodes.filter((n) => n.parentId === frame.id);
     return {
@@ -201,11 +216,20 @@ export async function layoutGraph(state: GraphState): Promise<LayoutResult> {
       };
     });
 
-  const elkEdges = Array.from(state.edges.values()).map((edge) => ({
-    id: edge.id,
-    sources: [edge.sourceId],
-    targets: [edge.targetId],
-  }));
+  // Only filter edges to/from frames (frames are containers, not nodes)
+  // But ALLOW cross-hierarchy edges (outside → inside frame)
+  const frameIds = new Set(frames.map((f) => f.id));
+
+  const elkEdges = Array.from(state.edges.values())
+    .filter((edge) => {
+      // Don't allow edges to/from frames themselves
+      return !frameIds.has(edge.sourceId) && !frameIds.has(edge.targetId);
+    })
+    .map((edge) => ({
+      id: edge.id,
+      sources: [edge.sourceId],
+      targets: [edge.targetId],
+    }));
 
   const graph: ElkNode = {
     id: 'root',
@@ -214,7 +238,10 @@ export async function layoutGraph(state: GraphState): Promise<LayoutResult> {
       'elk.direction': 'RIGHT',
       'elk.spacing.nodeNode': '80',
       'elk.layered.spacing.nodeNodeBetweenLayers': '100',
-      'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
+      // SEPARATE_CHILDREN properly handles cross-hierarchy edges
+      'elk.hierarchyHandling': 'SEPARATE_CHILDREN',
+      // Allow edges to cross hierarchy boundaries
+      'elk.edgeRouting': 'ORTHOGONAL',
     },
     children: [...elkFrames, ...topLevelNodes],
     edges: elkEdges,
@@ -253,6 +280,27 @@ export async function layoutGraph(state: GraphState): Promise<LayoutResult> {
 
   extractNodes(layouted);
 
+  // Now position the positioned nodes based on their hints
+  for (const posNode of positionedNodes) {
+    const dims = getNodeDimensions(posNode.type);
+    const position = calculatePosition(posNode, nodes, dims);
+
+    nodes.push({
+      id: posNode.id,
+      label: posNode.label,
+      description: posNode.description,
+      type: posNode.type,
+      x: position.x,
+      y: position.y,
+      width: dims.width,
+      height: dims.height,
+      parentId: posNode.parentId,
+      color: posNode.color,
+      position: posNode.position,
+      relativeTo: posNode.relativeTo,
+    });
+  }
+
   const edges: LayoutEdge[] = Array.from(state.edges.values()).map((edge) => ({
     id: edge.id,
     sourceId: edge.sourceId,
@@ -261,6 +309,160 @@ export async function layoutGraph(state: GraphState): Promise<LayoutResult> {
   }));
 
   return { nodes, edges };
+}
+
+// Calculate position for a positioned node
+function calculatePosition(
+  node: GraphNode,
+  existingNodes: LayoutNode[],
+  dims: { width: number; height: number }
+): { x: number; y: number } {
+  const GAP = 50; // Gap between nodes
+
+  // If relative to a specific node
+  if (node.relativeTo) {
+    const targetNode = existingNodes.find((n) => n.id === node.relativeTo);
+    if (targetNode) {
+      return calculateRelativePosition(node.position || 'right', targetNode, dims, GAP);
+    }
+  }
+
+  // Relative to entire canvas/drawing
+  return calculateCanvasPosition(node.position || 'right', existingNodes, dims, GAP);
+}
+
+// Calculate position relative to a specific node
+function calculateRelativePosition(
+  position: string,
+  targetNode: LayoutNode,
+  dims: { width: number; height: number },
+  gap: number
+): { x: number; y: number } {
+  const centerX = targetNode.x + targetNode.width / 2;
+  const centerY = targetNode.y + targetNode.height / 2;
+
+  switch (position.toLowerCase()) {
+    case 'above':
+    case 'top':
+      return {
+        x: centerX - dims.width / 2,
+        y: targetNode.y - dims.height - gap,
+      };
+    case 'below':
+    case 'bottom':
+      return {
+        x: centerX - dims.width / 2,
+        y: targetNode.y + targetNode.height + gap,
+      };
+    case 'left':
+      return {
+        x: targetNode.x - dims.width - gap,
+        y: centerY - dims.height / 2,
+      };
+    case 'right':
+      return {
+        x: targetNode.x + targetNode.width + gap,
+        y: centerY - dims.height / 2,
+      };
+    case 'top-left':
+      return {
+        x: targetNode.x - dims.width - gap,
+        y: targetNode.y - dims.height - gap,
+      };
+    case 'top-right':
+      return {
+        x: targetNode.x + targetNode.width + gap,
+        y: targetNode.y - dims.height - gap,
+      };
+    case 'bottom-left':
+      return {
+        x: targetNode.x - dims.width - gap,
+        y: targetNode.y + targetNode.height + gap,
+      };
+    case 'bottom-right':
+      return {
+        x: targetNode.x + targetNode.width + gap,
+        y: targetNode.y + targetNode.height + gap,
+      };
+    default:
+      // Default to right
+      return {
+        x: targetNode.x + targetNode.width + gap,
+        y: centerY - dims.height / 2,
+      };
+  }
+}
+
+// Calculate position relative to entire canvas
+function calculateCanvasPosition(
+  position: string,
+  existingNodes: LayoutNode[],
+  dims: { width: number; height: number },
+  gap: number
+): { x: number; y: number } {
+  if (existingNodes.length === 0) {
+    return { x: 0, y: 0 };
+  }
+
+  // Calculate bounding box of existing nodes
+  const minX = Math.min(...existingNodes.map((n) => n.x));
+  const maxX = Math.max(...existingNodes.map((n) => n.x + n.width));
+  const minY = Math.min(...existingNodes.map((n) => n.y));
+  const maxY = Math.max(...existingNodes.map((n) => n.y + n.height));
+
+  const centerX = (minX + maxX) / 2;
+  const centerY = (minY + maxY) / 2;
+
+  switch (position.toLowerCase()) {
+    case 'above':
+    case 'top':
+      return {
+        x: centerX - dims.width / 2,
+        y: minY - dims.height - gap,
+      };
+    case 'below':
+    case 'bottom':
+      return {
+        x: centerX - dims.width / 2,
+        y: maxY + gap,
+      };
+    case 'left':
+      return {
+        x: minX - dims.width - gap,
+        y: centerY - dims.height / 2,
+      };
+    case 'right':
+      return {
+        x: maxX + gap,
+        y: centerY - dims.height / 2,
+      };
+    case 'top-left':
+      return {
+        x: minX - dims.width - gap,
+        y: minY - dims.height - gap,
+      };
+    case 'top-right':
+      return {
+        x: maxX + gap,
+        y: minY - dims.height - gap,
+      };
+    case 'bottom-left':
+      return {
+        x: minX - dims.width - gap,
+        y: maxY + gap,
+      };
+    case 'bottom-right':
+      return {
+        x: maxX + gap,
+        y: maxY + gap,
+      };
+    default:
+      // Default to right of drawing
+      return {
+        x: maxX + gap,
+        y: centerY - dims.height / 2,
+      };
+  }
 }
 
 // Helper to get tldraw shape ID from node ID

@@ -14,7 +14,9 @@ data class SketchAction(
     @SerialName("target_id") val targetId: String? = null,
     val bidirectional: Boolean? = null,
     @SerialName("parent_id") val parentId: String? = null,
-    val color: String? = null
+    val color: String? = null,
+    val position: String? = null,
+    @SerialName("relative_to") val relativeTo: String? = null
 )
 
 @Serializable

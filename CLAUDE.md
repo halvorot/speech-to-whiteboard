@@ -105,19 +105,23 @@ Use this checklist to track progress. **Do not skip stages.**
         - [x] Apply semantic colors to nodes (database=green, server=blue, etc.).
         - [x] Update system prompt to teach AI about frames and grouping.
 
-- [ ] **Stage 3.5: Advanced Shape Types**
-    - [ ] **Text Boxes:**
-        - [ ] Add text box node type (headers, body text, captions).
-        - [ ] Implement rich text formatting support (bold, italic, lists).
-        - [ ] Update Sketch Protocol for text box actions.
-    - [ ] **Notes/Annotations:**
-        - [ ] Add sticky note shape type.
-        - [ ] Implement note positioning and styling.
-        - [ ] Support voice commands for note creation.
-    - [ ] **System Integration:**
-        - [ ] Update system prompt with examples for all new shape types.
-        - [ ] Test all shape types working together.
-        - [ ] Ensure proper layout and color coordination.
+- [x] **Stage 3.5: Advanced Shape Types**
+    - [x] **Text Boxes:**
+        - [x] Add text box node type (headers, body text, captions).
+        - [x] Implement rich text formatting support (bold, italic, lists).
+        - [x] Update Sketch Protocol for text box actions.
+    - [x] **Notes/Annotations:**
+        - [x] Add sticky note shape type.
+        - [x] Implement note positioning and styling.
+        - [x] Support voice commands for note creation.
+    - [x] **System Integration:**
+        - [x] Update system prompt with examples for all new shape types.
+        - [x] Test all shape types working together.
+        - [x] Ensure proper layout and color coordination.
+    - [x] **Bonus Features:**
+        - [x] Smart positioning (above/below/left/right relative to nodes or entire drawing).
+        - [x] Manual edit persistence (position/size changes preserved across voice commands).
+        - [x] Efficient rendering (update existing shapes instead of full re-render).
 
 - [ ] **Stage 4: The Architect (Review)**
     - [ ] UI: "Review Board" button.

@@ -240,6 +240,23 @@ export function Whiteboard() {
       const currentShapes = editor.getCurrentPageShapes();
       const graphState = graphStateRef.current;
 
+      // Sync text and note shapes (position, size changes)
+      currentShapes
+        .filter((s) => s.type === 'text' || s.type === 'note')
+        .forEach((shape) => {
+          const nodeId = shape.id.replace('shape:', '');
+          const existingNode = graphState.nodes.get(nodeId);
+
+          if (existingNode) {
+            // Update position and clear position hints (now absolute positioned)
+            graphState.nodes.set(nodeId, {
+              ...existingNode,
+              position: undefined,
+              relativeTo: undefined,
+            });
+          }
+        });
+
       // Get IDs of shapes currently on canvas (excluding arrows and frames)
       const canvasNodeIds = new Set(
         currentShapes

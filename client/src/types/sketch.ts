@@ -36,6 +36,8 @@ export interface SketchAction {
   bidirectional?: boolean;
   parent_id?: string;
   color?: string;
+  position?: string;
+  relative_to?: string;
 }
 
 export interface SketchResponse {
