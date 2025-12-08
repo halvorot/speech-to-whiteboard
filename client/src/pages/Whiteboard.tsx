@@ -257,16 +257,22 @@ export function Whiteboard() {
           }
         });
 
+      // Get ALL shapes on canvas, including children of frames
+      const allShapes = editor.getCurrentPageShapeIds().map((id) => editor.getShape(id)!);
+
       // Get IDs of shapes currently on canvas (excluding arrows and frames)
       const canvasNodeIds = new Set(
-        currentShapes
+        allShapes
           .filter((s) => s.type === 'diagram-node' || s.type === 'text' || s.type === 'note')
           .map((s) => s.id.replace('shape:', ''))
       );
 
       // Remove nodes from graph state that are no longer on canvas
       const nodesToRemove: string[] = [];
-      for (const [nodeId] of graphState.nodes) {
+      for (const [nodeId, node] of graphState.nodes) {
+        // Skip frames - they're containers, not regular nodes
+        if (node.type === 'frame') continue;
+
         if (!canvasNodeIds.has(nodeId)) {
           nodesToRemove.push(nodeId);
         }
@@ -345,11 +351,15 @@ export function Whiteboard() {
       <header className="bg-gray-800 text-white p-4 flex justify-between items-center relative z-40">
         <h1 className="text-xl font-bold">VoiceBoard</h1>
         <div className="flex-1 mx-8">
-          {lastTranscript && (
-            <div className="bg-gray-700 px-4 py-2 rounded text-sm">
-              <span className="text-gray-400">You said:</span> {lastTranscript}
-            </div>
-          )}
+          <div className="bg-gray-700 px-4 py-2 rounded text-sm">
+            {lastTranscript ? (
+              <><span className="text-gray-400">You said:</span> {lastTranscript}</>
+            ) : (
+              <span className="text-gray-400 italic">
+                Press record and say something like: "Create a React frontend, Node API server, Redis cache, and Postgres database, then connect them together"
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-4">
           <button
