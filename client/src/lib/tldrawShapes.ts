@@ -9,8 +9,8 @@ function lineIntersectsRect(
   lineEnd: { x: number; y: number },
   rect: { x: number; y: number; width: number; height: number }
 ): boolean {
-  // Expand rect slightly for padding
-  const padding = 20;
+  // Minimal padding - only bend for actual intersections
+  const padding = 5;
   const rectX = rect.x - padding;
   const rectY = rect.y - padding;
   const rectW = rect.width + padding * 2;
@@ -71,6 +71,17 @@ function calculateOptimalBend(
   const lineStart = { x: sourceCenterX, y: sourceCenterY };
   const lineEnd = { x: targetCenterX, y: targetCenterY };
 
+  // Calculate arrow length
+  const dx = targetCenterX - sourceCenterX;
+  const dy = targetCenterY - sourceCenterY;
+  const arrowLength = Math.sqrt(dx * dx + dy * dy);
+
+  // Only allow bending for longer arrows (min 200px)
+  const MIN_ARROW_LENGTH_FOR_BENDING = 200;
+  if (arrowLength < MIN_ARROW_LENGTH_FOR_BENDING) {
+    return 0; // Too short, keep straight
+  }
+
   // Check for collisions with other nodes (excluding source and target)
   const collidingNodes = allNodes.filter(
     (node) => node.id !== sourceNode.id && node.id !== targetNode.id &&
@@ -80,11 +91,6 @@ function calculateOptimalBend(
   if (collidingNodes.length === 0) {
     return 0; // No collision, straight arrow
   }
-
-  // Calculate bend to avoid collisions
-  // Bend perpendicular to the arrow direction
-  const dx = targetCenterX - sourceCenterX;
-  const dy = targetCenterY - sourceCenterY;
 
   // Find the node closest to the midpoint of the arrow
   const midX = (sourceCenterX + targetCenterX) / 2;
@@ -110,8 +116,10 @@ function calculateOptimalBend(
   // Cross product to determine which side the node is on
   const cross = dx * (nodeCenterY - sourceCenterY) - dy * (nodeCenterX - sourceCenterX);
 
-  // Bend magnitude: proportional to node size and distance
-  const bendMagnitude = Math.max(closestNode.width, closestNode.height) * 0.8;
+  // Bend magnitude: smaller and capped to prevent circle-like bends
+  // Use 30% of node size with max of 60px
+  const baseBend = Math.max(closestNode.width, closestNode.height) * 0.3;
+  const bendMagnitude = Math.min(baseBend, 60);
 
   // Bend direction: opposite side of the colliding node
   return cross > 0 ? -bendMagnitude : bendMagnitude;

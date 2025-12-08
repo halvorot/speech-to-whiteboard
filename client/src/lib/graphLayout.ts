@@ -188,7 +188,7 @@ export async function layoutGraph(state: GraphState): Promise<LayoutResult> {
       layoutOptions: {
         'elk.padding': '[top=60,left=20,bottom=20,right=20]',
         'elk.algorithm': 'layered',
-        'elk.direction': 'RIGHT',
+        'elk.direction': 'DOWN',
         'elk.spacing.nodeNode': '40',
       },
       children: children.map((n) => {
@@ -235,7 +235,7 @@ export async function layoutGraph(state: GraphState): Promise<LayoutResult> {
     id: 'root',
     layoutOptions: {
       'elk.algorithm': 'layered',
-      'elk.direction': 'RIGHT',
+      'elk.direction': 'DOWN',
       'elk.spacing.nodeNode': '80',
       'elk.layered.spacing.nodeNodeBetweenLayers': '100',
       // SEPARATE_CHILDREN properly handles cross-hierarchy edges
