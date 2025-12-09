@@ -267,13 +267,17 @@ export function renderLayout(editor: Editor, nodes: LayoutNode[], edges: LayoutE
         const existingShape = exists ? editor.getShape(shapeId) : null;
 
         if (exists && existingShape) {
-          // Update content only, keep position if manually moved
+          // Update content and parent
           editor.updateShape({
             id: shapeId,
             type: 'text',
+            x: node.x,
+            y: node.y,
             props: {
               richText: toRichText(text),
+              w: node.width,
             },
+            parentId, // Update parent for frame moves
           });
         } else {
           // Create new text shape
@@ -299,14 +303,17 @@ export function renderLayout(editor: Editor, nodes: LayoutNode[], edges: LayoutE
         const existingShape = exists ? editor.getShape(shapeId) : null;
 
         if (exists && existingShape) {
-          // Update content only, keep position if manually moved
+          // Update content and parent
           editor.updateShape({
             id: shapeId,
             type: 'note',
+            x: node.x,
+            y: node.y,
             props: {
               richText: toRichText(text),
               color: noteColor,
             },
+            parentId, // Update parent for frame moves
           });
         } else {
           // Create new note shape
@@ -328,7 +335,7 @@ export function renderLayout(editor: Editor, nodes: LayoutNode[], edges: LayoutE
         const nodeColor = getNodeColor(node.type);
 
         if (exists) {
-          // Update existing node
+          // Update existing node (including parentId for frame moves)
           editor.updateShape({
             id: shapeId,
             type: 'diagram-node',
@@ -342,6 +349,7 @@ export function renderLayout(editor: Editor, nodes: LayoutNode[], edges: LayoutE
               label: node.label,
               description: node.description || '',
             },
+            parentId, // IMPORTANT: Update parent when node moves into/out of frame
           });
         } else {
           // Create new node
