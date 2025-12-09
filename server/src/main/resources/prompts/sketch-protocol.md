@@ -329,6 +329,15 @@ User: "take API server out of the frame"
 
 ## RULES
 
+**CRITICAL: ONLY these 5 actions are valid:**
+- create_node
+- update_node
+- delete_node
+- create_edge
+- delete_edge
+
+**NO other actions exist (no update_edge, no modify_edge, etc.)**
+
 1. Always provide both label AND description for create_node
 2. Keep labels SHORT (2-4 words max)
 3. Descriptions add technical detail or context

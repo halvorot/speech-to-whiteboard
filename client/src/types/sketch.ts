@@ -43,3 +43,28 @@ export interface SketchAction {
 export interface SketchResponse {
   actions: SketchAction[];
 }
+
+// Graph sync message types
+export interface SerializedGraphNode {
+  id: string;
+  label: string;
+  description: string;
+  type: NodeType;
+  parentId?: string;
+  color?: string;
+  position?: string;
+  relativeTo?: string;
+}
+
+export interface SerializedGraphEdge {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  bidirectional?: boolean;
+}
+
+export interface GraphSyncMessage {
+  type: 'graph_sync';
+  nodes: SerializedGraphNode[];
+  edges: SerializedGraphEdge[];
+}

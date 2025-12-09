@@ -8,7 +8,7 @@ Real-time collaborative whiteboard controlled by voice commands.
 
 See the full screen recording [here](docs/screen-recording-db-server-client-diagram.mov)
 
-## Current Status: Stage 3 Complete ✅
+## Current Status: Stage 3.5 Complete ✅
 
 ### Stage 1: The Skeleton ✅
 - ✅ Monorepo structure (client/server)
@@ -31,6 +31,15 @@ See the full screen recording [here](docs/screen-recording-db-server-client-diag
 - ✅ Automatic arrow routing
 - ✅ Bidirectional edge support
 - ✅ Voice-controlled diagram manipulation
+
+### Stage 3.5: Advanced Shape Types ✅
+- ✅ **Frames/Grouping:** Colored frames with parent-child relationships & hierarchical layout
+- ✅ **Semantic Colors:** Node types auto-colored (database=green, server=blue, etc.)
+- ✅ **Text Boxes:** Headers, body text, captions with rich formatting (bold, italic, lists)
+- ✅ **Sticky Notes:** Annotation support with voice commands
+- ✅ **Smart Positioning:** Relative placement (above/below/left/right of nodes or entire drawing)
+- ✅ **Manual Edit Persistence:** Position/size changes preserved across voice commands
+- ✅ **Efficient Rendering:** Updates existing shapes instead of full re-render
 
 ## Prerequisites
 
@@ -153,12 +162,14 @@ make check-env     # Verify environment setup
 1. **Login** - Choose auth method and sign in
 2. **Connect** - WebSocket connects automatically with JWT
 3. **Draw** - Hold Push-to-Talk and speak diagram commands:
-   - "Create a web server box"
-   - "Add a database called PostgreSQL"
-   - "Draw arrow from web server to database"
-   - "Make that bidirectional"
-   - "Remove the database box"
-4. **View** - Watch diagrams appear automatically with auto-layout
+   - **Nodes:** "Create a web server box" / "Add a database called PostgreSQL"
+   - **Arrows:** "Draw arrow from web server to database" / "Make that bidirectional"
+   - **Frames:** "Group the server and database in a backend frame"
+   - **Text:** "Add a title that says 'System Architecture'"
+   - **Notes:** "Add a sticky note saying 'needs optimization'"
+   - **Positioning:** "Add a note above the database" / "Put text below the entire diagram"
+   - **Deletion:** "Remove the database box"
+4. **View** - Watch diagrams appear automatically with auto-layout & semantic colors
 
 ## Tech Stack
 
@@ -191,6 +202,7 @@ ELK.js Layout → tldraw Rendering
 
 - **Stage 4:** Architect Review (Claude 3.5 Sonnet for diagram analysis)
 - **Stage 5:** Persistence (Save/load diagrams to Supabase)
+- **Stage 6:** Multi-Language Support (Deepgram language config for STT)
 
 ## Project Structure
 

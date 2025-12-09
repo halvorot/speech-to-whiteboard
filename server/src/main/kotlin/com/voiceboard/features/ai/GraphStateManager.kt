@@ -7,7 +7,10 @@ data class GraphNode(
     val label: String,
     val description: String,
     val type: NodeType,
-    val parentId: String? = null
+    val parentId: String? = null,
+    val color: String? = null,
+    val position: String? = null,
+    val relativeTo: String? = null
 )
 
 data class GraphEdge(
@@ -20,6 +23,34 @@ data class GraphState(
     val nodes: MutableMap<String, GraphNode> = mutableMapOf(),
     val edges: MutableSet<GraphEdge> = mutableSetOf()
 ) {
+    fun syncFrom(syncMessage: GraphSyncMessage) {
+        // Clear existing state
+        nodes.clear()
+        edges.clear()
+
+        // Populate from sync message
+        syncMessage.nodes.forEach { node ->
+            nodes[node.id] = GraphNode(
+                id = node.id,
+                label = node.label,
+                description = node.description,
+                type = node.type,
+                parentId = node.parentId,
+                color = node.color,
+                position = node.position,
+                relativeTo = node.relativeTo
+            )
+        }
+
+        syncMessage.edges.forEach { edge ->
+            edges.add(GraphEdge(
+                sourceId = edge.sourceId,
+                targetId = edge.targetId,
+                bidirectional = edge.bidirectional ?: false
+            ))
+        }
+    }
+
     fun toSummary(): String {
         if (nodes.isEmpty()) return "Empty graph"
 
@@ -68,7 +99,10 @@ data class GraphState(
                         label = action.label,
                         description = action.description ?: "",
                         type = action.type,
-                        parentId = action.parentId
+                        parentId = action.parentId,
+                        color = action.color,
+                        position = action.position,
+                        relativeTo = action.relativeTo
                     )
                     true
                 } else false
@@ -81,7 +115,10 @@ data class GraphState(
                         label = action.label ?: existing.label,
                         description = action.description ?: existing.description,
                         type = action.type ?: existing.type,
-                        parentId = action.parentId ?: existing.parentId
+                        parentId = action.parentId ?: existing.parentId,
+                        color = action.color ?: existing.color,
+                        position = action.position ?: existing.position,
+                        relativeTo = action.relativeTo ?: existing.relativeTo
                     )
                     true
                 } else false

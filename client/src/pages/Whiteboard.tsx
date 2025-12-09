@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Tldraw, type Editor } from 'tldraw';
 import 'tldraw/tldraw.css';
 import { useAuth } from '../contexts/AuthContext';
-import { createGraphState, applyAction, layoutGraph, type GraphState } from '../lib/graphLayout';
+import { createGraphState, applyAction, layoutGraph, serializeGraphState, type GraphState } from '../lib/graphLayout';
 import { renderLayout } from '../lib/tldrawShapes';
 import { DiagramNodeUtil } from '../lib/DiagramNodeShape';
 import { StatusBanner } from '../components/StatusBanner';
@@ -79,6 +79,11 @@ export function Whiteboard() {
         hasConnectedRef.current = true;
         addToast('success', 'Connected to server');
       }
+
+      // Sync current graph state on connect/reconnect
+      const graphSync = serializeGraphState(graphStateRef.current);
+      ws.send(JSON.stringify(graphSync));
+      console.log('Sent initial graph sync:', graphSync.nodes.length, 'nodes,', graphSync.edges.length, 'edges');
     };
 
     ws.onmessage = (event) => {
@@ -189,6 +194,12 @@ export function Whiteboard() {
         const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType });
         console.log('Sending audio blob, size:', audioBlob.size);
         if (wsRef.current?.readyState === WebSocket.OPEN && audioBlob.size > 0) {
+          // Send graph sync before audio
+          const graphSync = serializeGraphState(graphStateRef.current);
+          wsRef.current.send(JSON.stringify(graphSync));
+          console.log('Sent graph sync:', graphSync.nodes.length, 'nodes,', graphSync.edges.length, 'edges');
+
+          // Send audio
           wsRef.current.send(audioBlob);
           // Start timeout for response
           startStatusTimeout();
@@ -232,47 +243,27 @@ export function Whiteboard() {
     }
   };
 
-  // Sync manual canvas edits back to graph state
+  // Sync manual canvas edits back to graph state (structure only, not layout)
   useEffect(() => {
     if (!editor) return;
 
     const handleChange = () => {
-      const currentShapes = editor.getCurrentPageShapes();
       const graphState = graphStateRef.current;
 
-      // Sync text and note shapes (position, size changes)
-      currentShapes
-        .filter((s) => s.type === 'text' || s.type === 'note')
-        .forEach((shape) => {
-          const nodeId = shape.id.replace('shape:', '');
-          const existingNode = graphState.nodes.get(nodeId);
+      // Get all current shape/arrow IDs on canvas
+      const allShapes = Array.from(editor.getCurrentPageShapeIds()).map((id) => editor.getShape(id)!);
 
-          if (existingNode) {
-            // Update position and clear position hints (now absolute positioned)
-            graphState.nodes.set(nodeId, {
-              ...existingNode,
-              position: undefined,
-              relativeTo: undefined,
-            });
-          }
-        });
-
-      // Get ALL shapes on canvas, including children of frames
-      const allShapes = editor.getCurrentPageShapeIds().map((id) => editor.getShape(id)!);
-
-      // Get IDs of shapes currently on canvas (excluding arrows and frames)
+      // 1. Sync node deletions
       const canvasNodeIds = new Set(
         allShapes
           .filter((s) => s.type === 'diagram-node' || s.type === 'text' || s.type === 'note')
           .map((s) => s.id.replace('shape:', ''))
       );
 
-      // Remove nodes from graph state that are no longer on canvas
       const nodesToRemove: string[] = [];
       for (const [nodeId, node] of graphState.nodes) {
-        // Skip frames - they're containers, not regular nodes
+        // Skip frames - they're containers
         if (node.type === 'frame') continue;
-
         if (!canvasNodeIds.has(nodeId)) {
           nodesToRemove.push(nodeId);
         }
@@ -281,16 +272,64 @@ export function Whiteboard() {
       nodesToRemove.forEach((nodeId) => {
         console.log('Syncing deletion of node:', nodeId);
         graphState.nodes.delete(nodeId);
-        // Also remove connected edges
+        // Remove connected edges
         for (const [edgeId, edge] of graphState.edges) {
           if (edge.sourceId === nodeId || edge.targetId === nodeId) {
             graphState.edges.delete(edgeId);
           }
         }
       });
+
+      // 2. Sync edge deletions (manually deleted arrows)
+      const canvasArrowIds = new Set(
+        allShapes
+          .filter((s) => s.type === 'arrow' && s.id.toString().startsWith('shape:arrow_'))
+          .map((s) => s.id.replace('shape:arrow_', ''))
+      );
+
+      const edgesToRemove: string[] = [];
+      for (const [edgeId] of graphState.edges) {
+        if (!canvasArrowIds.has(edgeId)) {
+          edgesToRemove.push(edgeId);
+        }
+      }
+
+      edgesToRemove.forEach((edgeId) => {
+        console.log('Syncing deletion of edge:', edgeId);
+        graphState.edges.delete(edgeId);
+      });
+
+      // 3. Sync parent changes (nodes moved into/out of frames)
+      // Check if any diagram-node's parent has changed in tldraw
+      allShapes
+        .filter((s) => s.type === 'diagram-node')
+        .forEach((shape) => {
+          const nodeId = shape.id.replace('shape:', '');
+          const existingNode = graphState.nodes.get(nodeId);
+
+          if (existingNode) {
+            // Get the shape's current parent in tldraw
+            const tldrawParent = shape.parentId;
+            const tldrawParentNodeId = tldrawParent?.toString().replace('shape:', '');
+
+            // Check if parent changed
+            const currentParentId = existingNode.parentId;
+            const newParentId = tldrawParentNodeId && graphState.nodes.get(tldrawParentNodeId)?.type === 'frame'
+              ? tldrawParentNodeId
+              : undefined;
+
+            if (currentParentId !== newParentId) {
+              console.log(`Syncing parent change for ${nodeId}: ${currentParentId} → ${newParentId}`);
+              graphState.nodes.set(nodeId, {
+                ...existingNode,
+                parentId: newParentId,
+              });
+            }
+          }
+        });
     };
 
-    // Listen to history changes (undo/redo/delete/etc)
+    // Listen to user-initiated changes
     const dispose = editor.store.listen(handleChange, { scope: 'document', source: 'user' });
 
     return () => {
@@ -325,7 +364,18 @@ export function Whiteboard() {
       console.log(`Applied action ${action.action}:`, applied);
     }
 
-    // Layout and render
+    // Clean up orphaned edges (edges referencing non-existent nodes)
+    const validNodeIds = new Set(graphState.nodes.keys());
+    const orphanedEdges: string[] = [];
+    for (const [edgeId, edge] of graphState.edges) {
+      if (!validNodeIds.has(edge.sourceId) || !validNodeIds.has(edge.targetId)) {
+        orphanedEdges.push(edgeId);
+        console.log(`Removing orphaned edge ${edgeId}: ${edge.sourceId} -> ${edge.targetId}`);
+      }
+    }
+    orphanedEdges.forEach((edgeId) => graphState.edges.delete(edgeId));
+
+    // Layout and render (full auto-layout by ELK)
     layoutGraph(graphState)
       .then((layout) => {
         console.log('Layout calculated:', layout);

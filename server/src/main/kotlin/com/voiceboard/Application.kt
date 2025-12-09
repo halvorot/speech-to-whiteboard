@@ -1,6 +1,7 @@
 package com.voiceboard
 
 import com.voiceboard.features.ai.GraphStateManager
+import com.voiceboard.features.ai.GraphSyncMessage
 import com.voiceboard.features.ai.GroqClient
 import com.voiceboard.features.ai.SketchResponse
 import com.voiceboard.features.auth.JwtVerifier
@@ -173,6 +174,18 @@ fun Application.module() {
                         is Frame.Text -> {
                             val text = frame.readText()
                             logger.debug("Received text message: $text")
+
+                            // Try to parse as graph sync message
+                            try {
+                                val syncMessage = Json.decodeFromString(GraphSyncMessage.serializer(), text)
+                                if (syncMessage.type == "graph_sync") {
+                                    graphState.syncFrom(syncMessage)
+                                    logger.info("Graph state synced: ${syncMessage.nodes.size} nodes, ${syncMessage.edges.size} edges")
+                                }
+                            } catch (e: Exception) {
+                                // Not a graph sync message, ignore
+                                logger.debug("Text message is not a graph sync: ${e.message}")
+                            }
                         }
                         else -> {}
                     }

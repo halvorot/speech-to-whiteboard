@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.*
 import org.slf4j.LoggerFactory
 
 @Serializable
@@ -262,13 +262,60 @@ class GroqClient(
 
             // Parse the JSON response into SketchResponse
             // Handle both { "actions": [...] } and [...] formats
-            if (cleanedContent.trimStart().startsWith("[")) {
-                // Direct array format - wrap it
-                val actions = json.decodeFromString<List<SketchAction>>(cleanedContent)
-                SketchResponse(actions)
-            } else {
-                // Standard format
-                json.decodeFromString<SketchResponse>(cleanedContent)
+            // IMPORTANT: Filter out invalid actions to handle AI hallucinations
+            try {
+                val validActionTypes = setOf("create_node", "update_node", "delete_node", "create_edge", "delete_edge")
+                val response = if (cleanedContent.trimStart().startsWith("[")) {
+                    // Direct array format - wrap it
+                    val actions = json.decodeFromString<List<SketchAction>>(cleanedContent)
+                    SketchResponse(actions)
+                } else {
+                    // Standard format
+                    json.decodeFromString<SketchResponse>(cleanedContent)
+                }
+
+                // Filter out actions with invalid types (AI hallucinations like "update_edge")
+                val validActions = response.actions.filter { action ->
+                    val actionName = action.action.name
+                    if (validActionTypes.contains(actionName)) {
+                        true
+                    } else {
+                        logger.warn("Filtered out invalid action type: $actionName - ${action}")
+                        false
+                    }
+                }
+
+                if (validActions.size < response.actions.size) {
+                    logger.warn("Filtered out ${response.actions.size - validActions.size} invalid actions")
+                }
+
+                SketchResponse(validActions)
+            } catch (e: Exception) {
+                // If deserialization fails (e.g., due to invalid action type), try to manually filter
+                logger.error("Error deserializing Groq response, attempting manual filter", e)
+
+                // Parse as generic JSON and filter out actions with invalid types
+                val jsonElement = json.parseToJsonElement(cleanedContent)
+                val actionsArray = if (jsonElement is JsonObject) {
+                    jsonElement.jsonObject["actions"]?.jsonArray
+                } else {
+                    jsonElement.jsonArray
+                }
+
+                val validActions = actionsArray?.filter { actionElement ->
+                    val actionObj = actionElement.jsonObject
+                    val actionType = actionObj["action"]?.jsonPrimitive?.content
+                    setOf("create_node", "update_node", "delete_node", "create_edge", "delete_edge").contains(actionType)
+                } ?: emptyList()
+
+                if (validActions.isEmpty()) {
+                    logger.error("No valid actions found after filtering")
+                    throw IllegalStateException("AI returned no valid actions")
+                }
+
+                logger.info("Attempting to deserialize ${validActions.size} filtered actions")
+                val filteredJson = """{"actions":${validActions}}"""
+                json.decodeFromString<SketchResponse>(filteredJson)
             }
         } catch (e: Exception) {
             logger.error("Error getting commands from Groq", e)

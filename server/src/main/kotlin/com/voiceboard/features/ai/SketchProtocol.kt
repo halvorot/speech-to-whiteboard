@@ -60,3 +60,31 @@ data class SketchRequest(
     val currentGraphSummary: String,
     val userPrompt: String
 )
+
+// Graph sync message types
+@Serializable
+data class SerializedGraphNode(
+    val id: String,
+    val label: String,
+    val description: String,
+    val type: NodeType,
+    val parentId: String? = null,
+    val color: String? = null,
+    val position: String? = null,
+    val relativeTo: String? = null
+)
+
+@Serializable
+data class SerializedGraphEdge(
+    val id: String,
+    val sourceId: String,
+    val targetId: String,
+    val bidirectional: Boolean? = null
+)
+
+@Serializable
+data class GraphSyncMessage(
+    val type: String,
+    val nodes: List<SerializedGraphNode>,
+    val edges: List<SerializedGraphEdge>
+)

@@ -1,6 +1,6 @@
 import ELK, { type ElkNode } from 'elkjs/lib/elk.bundled.js';
 import type { TLShapeId } from 'tldraw';
-import type { SketchAction, NodeType } from '../types/sketch';
+import type { SketchAction, NodeType, GraphSyncMessage } from '../types/sketch';
 
 const elk = new ELK();
 
@@ -472,4 +472,27 @@ export function getShapeId(nodeId: string): TLShapeId {
 
 export function getArrowId(edgeId: string): TLShapeId {
   return `shape:arrow_${edgeId}` as TLShapeId;
+}
+
+// Serialize graph state for sync to backend
+export function serializeGraphState(state: GraphState): GraphSyncMessage {
+  return {
+    type: 'graph_sync',
+    nodes: Array.from(state.nodes.values()).map((node) => ({
+      id: node.id,
+      label: node.label,
+      description: node.description,
+      type: node.type,
+      parentId: node.parentId,
+      color: node.color,
+      position: node.position,
+      relativeTo: node.relativeTo,
+    })),
+    edges: Array.from(state.edges.values()).map((edge) => ({
+      id: edge.id,
+      sourceId: edge.sourceId,
+      targetId: edge.targetId,
+      bidirectional: edge.bidirectional,
+    })),
+  };
 }
