@@ -74,15 +74,22 @@ class GroqClient(
 
     suspend fun streamCommands(
         graphSummary: String,
-        userPrompt: String
+        userPrompt: String,
+        conversationHistory: String = "No previous commands"
     ): Flow<String> = flow {
         withContext(Dispatchers.IO) {
             try {
+                val userMessage = buildString {
+                    append("Recent commands: $conversationHistory\n\n")
+                    append("Current graph: $graphSummary\n\n")
+                    append("User command: $userPrompt")
+                }
+
                 val request = GroqRequest(
                     model = "llama-3.3-70b-versatile",
                     messages = listOf(
                         GroqMessage("system", systemPrompt),
-                        GroqMessage("user", "Current graph: $graphSummary\n\nUser command: $userPrompt")
+                        GroqMessage("user", userMessage)
                     ),
                     temperature = 0.1,
                     stream = true
@@ -153,14 +160,21 @@ class GroqClient(
 
     suspend fun getCommands(
         graphSummary: String,
-        userPrompt: String
+        userPrompt: String,
+        conversationHistory: String = "No previous commands"
     ): SketchResponse = withContext(Dispatchers.IO) {
         try {
+            val userMessage = buildString {
+                append("Recent commands: $conversationHistory\n\n")
+                append("Current graph: $graphSummary\n\n")
+                append("User command: $userPrompt")
+            }
+
             val request = GroqRequest(
                 model = "llama-3.3-70b-versatile",
                 messages = listOf(
                     GroqMessage("system", systemPrompt),
-                    GroqMessage("user", "Current graph: $graphSummary\n\nUser command: $userPrompt")
+                    GroqMessage("user", userMessage)
                 ),
                 temperature = 0.1,
                 stream = false

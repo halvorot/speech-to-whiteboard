@@ -21,8 +21,25 @@ data class GraphEdge(
 
 data class GraphState(
     val nodes: MutableMap<String, GraphNode> = mutableMapOf(),
-    val edges: MutableSet<GraphEdge> = mutableSetOf()
+    val edges: MutableSet<GraphEdge> = mutableSetOf(),
+    val conversationHistory: MutableList<String> = mutableListOf()
 ) {
+    companion object {
+        const val MAX_HISTORY_SIZE = 5 // Limit to last 5 commands for cost control
+    }
+
+    fun addToHistory(command: String) {
+        conversationHistory.add(command)
+        // Keep only last N commands
+        if (conversationHistory.size > MAX_HISTORY_SIZE) {
+            conversationHistory.removeAt(0)
+        }
+    }
+
+    fun getHistorySummary(): String {
+        if (conversationHistory.isEmpty()) return "No previous commands"
+        return conversationHistory.joinToString(" → ")
+    }
     fun syncFrom(syncMessage: GraphSyncMessage) {
         // Clear existing state
         nodes.clear()

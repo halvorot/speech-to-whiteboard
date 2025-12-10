@@ -131,10 +131,15 @@ fun Application.module() {
                                         // Get commands from Groq
                                         try {
                                             val graphSummary = graphState.toSummary()
+                                            val historySummary = graphState.getHistorySummary()
                                             logger.info("Current graph: $graphSummary")
+                                            logger.info("Conversation history: $historySummary")
 
-                                            val sketchResponse = groqClient.getCommands(graphSummary, transcript)
+                                            val sketchResponse = groqClient.getCommands(graphSummary, transcript, historySummary)
                                             logger.info("Got ${sketchResponse.actions.size} actions from Groq")
+
+                                            // Add command to history after successful processing
+                                            graphState.addToHistory(transcript)
 
                                             // Apply actions to graph state
                                             sketchResponse.actions.forEach { action ->
