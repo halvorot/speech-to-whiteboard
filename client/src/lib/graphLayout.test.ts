@@ -283,4 +283,95 @@ describe('graphLayout', () => {
       expect(state.edges.size).toBe(1);
     });
   });
+
+  describe('layout determinism', () => {
+    it('produces identical graph state from sequential vs batched actions', () => {
+      // Arrange
+      const stateSequential = createGraphState();
+      const stateBatched = createGraphState();
+
+      // Sequential actions (simulating: "add server", then "connect database to server")
+      const action1: SketchAction = {
+        action: 'create_node',
+        id: 'api_server',
+        label: 'API Server',
+        description: 'Node.js',
+        type: 'server',
+      };
+      const action2: SketchAction = {
+        action: 'create_node',
+        id: 'database',
+        label: 'Database',
+        description: 'PostgreSQL',
+        type: 'database',
+      };
+      const action3: SketchAction = {
+        action: 'create_edge',
+        source_id: 'api_server',
+        target_id: 'database',
+      };
+
+      // Act - Sequential
+      applyAction(stateSequential, action1);
+      applyAction(stateSequential, action2);
+      applyAction(stateSequential, action3);
+
+      // Act - Batched (simulating: "add server and connect database to server")
+      [action1, action2, action3].forEach((a) => applyAction(stateBatched, a));
+
+      // Assert - Both states should be identical
+      expect(stateSequential.nodes.size).toBe(stateBatched.nodes.size);
+      expect(stateSequential.edges.size).toBe(stateBatched.edges.size);
+      expect(stateSequential.nodes.get('api_server')?.label).toBe(
+        stateBatched.nodes.get('api_server')?.label
+      );
+      expect(stateSequential.nodes.get('database')?.label).toBe(
+        stateBatched.nodes.get('database')?.label
+      );
+
+      // Verify edges are identical
+      const edgesSeq = Array.from(stateSequential.edges.values());
+      const edgesBatch = Array.from(stateBatched.edges.values());
+      expect(edgesSeq.length).toBe(edgesBatch.length);
+      expect(edgesSeq[0].sourceId).toBe(edgesBatch[0].sourceId);
+      expect(edgesSeq[0].targetId).toBe(edgesBatch[0].targetId);
+    });
+
+    it('graph state contains no position data', () => {
+      // Arrange
+      const state = createGraphState();
+      const action: SketchAction = {
+        action: 'create_node',
+        id: 'node1',
+        label: 'Test Node',
+        type: 'server',
+      };
+
+      // Act
+      applyAction(state, action);
+
+      // Assert - GraphNode should not have x/y position fields
+      const node = state.nodes.get('node1');
+      expect(node).toBeDefined();
+      expect(node).not.toHaveProperty('x');
+      expect(node).not.toHaveProperty('y');
+
+      // Only text/notes should have position hints (not actual coordinates)
+      const textAction: SketchAction = {
+        action: 'create_node',
+        id: 'text1',
+        label: 'Title',
+        type: 'text',
+        position: 'above',
+        relative_to: 'node1',
+      };
+      applyAction(state, textAction);
+
+      const textNode = state.nodes.get('text1');
+      expect(textNode?.position).toBe('above'); // Position hint, not coordinate
+      expect(textNode?.relativeTo).toBe('node1'); // Relative reference
+      expect(textNode).not.toHaveProperty('x'); // No absolute coordinates
+      expect(textNode).not.toHaveProperty('y');
+    });
+  });
 });
