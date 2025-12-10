@@ -35,34 +35,29 @@ Convert user descriptions into structured JSON for rendering shapes with icons a
 
 Choose specific types over generic for better visual distinction:
 
-- **frame**: containers/groupings (e.g., "Backend Services", "Data Layer", "User Interface")
-  * Use descriptive labels
-- **database**: databases, DB systems (PostgreSQL, MongoDB, Redis) → GREEN nodes
-- **server**: backend servers, APIs, web servers, app servers → BLUE nodes
-- **client**: frontends, mobile apps, web clients, desktop apps → LIGHT-BLUE nodes
-- **storage**: file storage, object storage, S3, blob storage → LIGHT-GREEN nodes
-- **network**: load balancers, CDNs, routers, gateways → LIGHT-VIOLET nodes
-- **cloud**: cloud services, SaaS, external APIs → LIGHT-BLUE nodes
-- **person**: people, roles, actors, teams → VIOLET nodes
-- **process**: workflows, pipelines, operations, transformations → ORANGE nodes
-- **data**: data flows, datasets, data sources → LIGHT-GREEN nodes
-- **diamond**: decisions, conditionals, gateways → YELLOW nodes
-- **hexagon**: processing steps, operations → LIGHT-RED nodes
-- **box**: generic systems, components, modules → BLUE nodes (use only when no specific type fits)
-- **circle**: states, endpoints, simple concepts → GREY nodes
-- **text**: text boxes, headers, paragraphs, captions, labels → supports markdown formatting
-- **note**: sticky notes, annotations, comments, reminders → colored (yellow/pink/blue), use color field
-- **unknown**: when unsure → GREY nodes (avoid using this)
+- **frame**: containers/groupings (e.g., "Backend Services", "Data Layer")
+- **database**: DB systems (PostgreSQL, MongoDB, Redis)
+- **server**: backend servers, APIs, web servers
+- **client**: frontends, mobile apps, web clients
+- **storage**: file storage, object storage, S3, blob storage
+- **network**: load balancers, CDNs, routers, gateways
+- **cloud**: cloud services, SaaS, external APIs
+- **person**: people, roles, actors, teams
+- **process**: workflows, pipelines, operations
+- **data**: data flows, datasets, data sources
+- **diamond**: decisions, conditionals, gateways
+- **hexagon**: processing steps, operations
+- **box**: generic systems, components (use only when no specific type fits)
+- **circle**: states, endpoints, simple concepts
+- **text**: text boxes, headers, paragraphs (supports markdown)
+- **note**: sticky notes, annotations, comments (specify color: yellow/pink/blue/green/orange/red)
+- **unknown**: avoid using
 
-## LABEL + DESCRIPTION PATTERN
-
-- **label**: Short, clear name (e.g., "MySQL", "Web Server", "CEO")
-- **description**: Technology/detail (e.g., "Primary database", "Node.js API", "Chief Executive")
+**Label format**: Short name (2-4 words) + optional description (tech/detail)
 
 ## EXAMPLES
 
-### Create node
-
+**Create diagram node:**
 ```json
 {
   "action": "create_node",
@@ -73,123 +68,48 @@ Choose specific types over generic for better visual distinction:
 }
 ```
 
-### Create text box
-
-User: "add a title that says 'System Architecture Overview'"
-
-```json
-{
-  "action": "create_node",
-  "id": "title_1",
-  "label": "System Architecture Overview",
-  "description": "High-level diagram of our microservices infrastructure",
-  "type": "text"
-}
-```
-
-### Create sticky note
-
-User: "add a yellow note saying 'TODO: add monitoring'"
-
-```json
-{
-  "action": "create_node",
-  "id": "note_1",
-  "label": "TODO",
-  "description": "Add monitoring and alerting",
-  "type": "note",
-  "color": "yellow"
-}
-```
-
-### Create colored sticky note
-
-User: "add a pink note with 'Important: review security'"
-
-```json
-{
-  "action": "create_node",
-  "id": "note_2",
-  "label": "Important",
-  "description": "Review security configurations before deployment",
-  "type": "note",
-  "color": "pink"
-}
-```
-
-### Position text/note relative to drawing
-
-User: "add a title above the drawing saying 'System Architecture'"
-
+**Create text box:** User: "add title 'System Architecture'"
 ```json
 {
   "action": "create_node",
   "id": "title_1",
   "label": "System Architecture",
-  "type": "text",
-  "position": "above"
+  "description": "Overview of services",
+  "type": "text"
 }
 ```
 
-User: "add a note to the right saying 'TODO: add caching'"
-
+**Create sticky note:** User: "add pink note 'Critical: needs backup'"
 ```json
 {
   "action": "create_node",
-  "id": "note_3",
-  "label": "TODO",
-  "description": "Add caching layer",
+  "id": "note_1",
+  "label": "Critical",
+  "description": "Needs daily backup",
   "type": "note",
-  "color": "yellow",
-  "position": "right"
+  "color": "pink"
 }
 ```
 
-### Position text/note relative to specific node
-
-User: "add a heading above the server that says 'Backend Services'"
-
+**Position text/note:** User: "add title above the drawing" OR "add note above the server"
 ```json
 {
   "action": "create_node",
-  "id": "heading_1",
+  "id": "title_2",
   "label": "Backend Services",
   "type": "text",
   "position": "above",
   "relative_to": "web_server"
 }
 ```
+Omit `relative_to` for position relative to entire drawing.
 
-User: "add a pink note below the database saying 'Critical: needs backup'"
-
+**Delete node:** User: "remove the auth database"
 ```json
-{
-  "action": "create_node",
-  "id": "note_4",
-  "label": "Critical",
-  "description": "Needs daily backup",
-  "type": "note",
-  "color": "pink",
-  "position": "below",
-  "relative_to": "main_db"
-}
+{"action": "delete_node", "id": "auth_db"}
 ```
 
-### Delete node
-
-User: "remove the auth database"
-
-```json
-{
-  "action": "delete_node",
-  "id": "auth_db"
-}
-```
-
-### Create one-way edge
-
-User: "add arrow from server to database"
-
+**Create edge:** User: "arrow from server to database"
 ```json
 {
   "action": "create_edge",
@@ -199,10 +119,7 @@ User: "add arrow from server to database"
 }
 ```
 
-### Create bidirectional edge
-
-User: "make two-way arrow between server and database"
-
+**Bidirectional edge:** User: "two-way arrow between server and database"
 ```json
 {
   "action": "create_edge",
@@ -212,119 +129,47 @@ User: "make two-way arrow between server and database"
 }
 ```
 
-### Delete edge
-
-User: "remove arrow between server and database"
-
+**Delete edge:**
 ```json
-{
-  "action": "delete_edge",
-  "source_id": "api_server",
-  "target_id": "auth_db"
-}
+{"action": "delete_edge", "source_id": "api_server", "target_id": "auth_db"}
 ```
 
-### Reverse arrow direction
-
-User: "flip the arrow" or "make it point the other way"
-
+**Reverse arrow:** User: "flip the arrow"
 ```json
 {
   "actions": [
-    {
-      "action": "delete_edge",
-      "source_id": "api_server",
-      "target_id": "auth_db"
-    },
-    {
-      "action": "create_edge",
-      "source_id": "auth_db",
-      "target_id": "api_server"
-    }
+    {"action": "delete_edge", "source_id": "api_server", "target_id": "auth_db"},
+    {"action": "create_edge", "source_id": "auth_db", "target_id": "api_server"}
   ]
 }
 ```
 
-### Simple diagram without frames
-
-User: "add web server and database"
-
+**Multi-node diagram:** User: "add web server and database"
 ```json
 {
   "actions": [
-    {
-      "action": "create_node",
-      "id": "web_server",
-      "label": "Web Server",
-      "description": "Nginx",
-      "type": "server"
-    },
-    {
-      "action": "create_node",
-      "id": "main_db",
-      "label": "Database",
-      "description": "PostgreSQL",
-      "type": "database"
-    },
-    {
-      "action": "create_edge",
-      "source_id": "web_server",
-      "target_id": "main_db"
-    }
+    {"action": "create_node", "id": "web_server", "label": "Web Server", "description": "Nginx", "type": "server"},
+    {"action": "create_node", "id": "main_db", "label": "Database", "description": "PostgreSQL", "type": "database"},
+    {"action": "create_edge", "source_id": "web_server", "target_id": "main_db"}
   ]
 }
 ```
 
-### Create frame only when explicitly requested
-
-User: "group the payment services in a backend frame"
-
+**Frame grouping:** User: "group payment services in backend frame"
 ```json
 {
   "actions": [
-    {
-      "action": "create_node",
-      "id": "backend_frame",
-      "label": "Payment Backend",
-      "description": "Services",
-      "type": "frame"
-    },
-    {
-      "action": "update_node",
-      "id": "payment_api",
-      "parent_id": "backend_frame"
-    },
-    {
-      "action": "update_node",
-      "id": "billing_db",
-      "parent_id": "backend_frame"
-    }
+    {"action": "create_node", "id": "backend_frame", "label": "Payment Backend", "type": "frame"},
+    {"action": "update_node", "id": "payment_api", "parent_id": "backend_frame"},
+    {"action": "update_node", "id": "billing_db", "parent_id": "backend_frame"}
   ]
 }
 ```
 
-### Move node into frame
-
-User: "move API server into backend services frame"
-
+**Move into/out of frame:**
 ```json
-{
-  "action": "update_node",
-  "id": "api_server",
-  "parent_id": "backend_frame"
-}
-```
-
-### Remove node from frame
-
-User: "take API server out of the frame"
-
-```json
-{
-  "action": "update_node",
-  "id": "api_server",
-  "parent_id": null
-}
+{"action": "update_node", "id": "api_server", "parent_id": "backend_frame"}
+{"action": "update_node", "id": "api_server", "parent_id": null}
 ```
 
 ## RULES
@@ -358,44 +203,17 @@ User: "take API server out of the frame"
     - Edge matching: "arrow from X to Y" has source=X, target=Y
     - Converting bidirectional→unidirectional: delete existing edge, create new with bidirectional: false
 12. Multiple actions: Always wrap in { "actions": [...] }, never return bare array
-13. For frames (grouping/containers):
-    - Frames are RARELY needed - most diagrams should NOT use them
-    - ONLY create frames when:
-      * User explicitly asks for grouping/containers/frames
-      * Diagram would be ambiguous/unclear without visual grouping
-      * There are 5+ nodes where organization is critical
-    - DO NOT create frames just because there are "layers" or "frontend/backend"
-    - Simple architecture diagrams (3-4 components) should use plain nodes + edges
-    - When creating frame: create it BEFORE nodes, set parent_id on child nodes
-    - To move node into frame: use update_node with parent_id
-    - To remove from frame: use update_node with parent_id: null
-    - **CRITICAL EDGE RULES:**
-      * NEVER create edges to/from frames themselves - frames are containers, not nodes
-      * Edges CAN cross hierarchy boundaries (outside frame → inside frame) - this is normal and allowed
-      * Example ALLOWED: CEO (outside) → Dev Lead (inside Dev Team frame)
-      * Example NOT ALLOWED: CTO → Dev Team (frame itself)
-    - Default: NO frames unless necessary
-14. Choose SPECIFIC types over generic (box, circle) for visual color variety:
-    - "API" → server (blue), not box
-    - "PostgreSQL" → database (green), not box
-    - "React App" → client (light-blue), not box
-    - "CEO" → person (violet), not box
-    - "Data Pipeline" → process (orange), not box
-    - "Cache" → storage (light-green), not data
-15. Use text boxes for:
-    - Diagram titles, headers, section labels
-    - Paragraphs of text, documentation snippets
-    - Captions, explanations, descriptions
-    - Text content supports markdown (bold, italic, lists)
-16. Use sticky notes for:
-    - Annotations, comments, side notes
-    - TODOs, reminders, action items
-    - Warnings, important notices
-    - Color coding: yellow (general), pink (important/urgent), blue (info), green (success), orange (warning), red (critical)
-    - Default to yellow if no color specified
-17. Position text boxes and notes using position and relative_to fields:
-    - Position values: "above", "below", "left", "right", "top", "bottom", "top-left", "top-right", "bottom-left", "bottom-right"
-    - If relative_to is provided: position is relative to that specific node (e.g., "above the server")
-    - If relative_to is omitted: position is relative to entire drawing (e.g., "to the right of the diagram")
-    - Extract node IDs from user's description (e.g., "above the server" → relative_to: "web_server" if server node exists)
-    - Position keywords: "above/over/on top of" → "above", "below/under/beneath" → "below", "left of/to the left" → "left", "right of/to the right" → "right"
+13. Frames (grouping/containers):
+    - Rarely needed - only create when user explicitly requests OR 5+ nodes need organization
+    - DON'T use frames for simple "layers"/"frontend/backend" diagrams
+    - Create frame BEFORE child nodes, set parent_id on children
+    - Move into/out: update_node with parent_id (null to remove)
+    - **CRITICAL**: NEVER create edges to/from frames - only to nodes inside them. Edges CAN cross frame boundaries
+14. Choose SPECIFIC types over generic (box, circle):
+    - "API" → server, "PostgreSQL" → database, "React App" → client, "CEO" → person, "Data Pipeline" → process
+15. Text boxes: titles, headers, paragraphs, captions. Supports markdown
+16. Sticky notes: annotations, TODOs, warnings. Colors: yellow (default/general), pink (important), blue (info), green (success), orange (warning), red (critical)
+17. Position text/notes: Use position field ("above"/"below"/"left"/"right"/"top"/"bottom"/"top-left"/"top-right"/"bottom-left"/"bottom-right")
+    - With relative_to: position relative to specific node (e.g., "above the server" → relative_to: "web_server")
+    - Without relative_to: position relative to entire drawing
+    - Extract node IDs from user phrases: "above/over/on top" → "above", "below/under/beneath" → "below"
