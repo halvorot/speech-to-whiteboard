@@ -6,6 +6,13 @@ export type ActionType =
   | 'delete_edge';
 
 export type NodeType =
+  // Semantic types (infrastructure & data)
+  | 'database'
+  | 'server'
+  | 'client'
+  | 'storage'
+  | 'network'
+  // Shape-based types
   | 'box'
   | 'circle'
   | 'cloud'
@@ -16,14 +23,7 @@ export type NodeType =
   | 'data'
   | 'frame'
   | 'text'
-  | 'note'
-  // Legacy types
-  | 'database'
-  | 'server'
-  | 'client'
-  | 'storage'
-  | 'network'
-  | 'unknown';
+  | 'note';
 
 export interface SketchAction {
   action: ActionType;

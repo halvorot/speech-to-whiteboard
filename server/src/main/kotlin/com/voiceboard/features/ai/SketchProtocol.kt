@@ -30,6 +30,13 @@ enum class ActionType {
 
 @Serializable
 enum class NodeType {
+    // Semantic types (infrastructure & data)
+    database,
+    server,
+    client,
+    storage,
+    network,
+    // Shape-based types
     box,
     circle,
     cloud,
@@ -40,14 +47,7 @@ enum class NodeType {
     data,
     frame,
     text,
-    note,
-    // Legacy types (mapped to new types)
-    database,
-    server,
-    client,
-    storage,
-    network,
-    unknown
+    note
 }
 
 @Serializable

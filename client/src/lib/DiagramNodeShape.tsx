@@ -10,14 +10,13 @@ import type { NodeType } from '../types/sketch';
 
 // Icon SVG library
 const ICONS: Record<NodeType, string> = {
-  // Tech icons
+  // Semantic types
   database: `<svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.657 4.03 3 9 3s9-1.343 9-3V5"/><path d="M3 11v6c0 1.657 4.03 3 9 3s9-1.343 9-3v-6"/></svg>`,
   server: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01M6 18h.01"/></svg>`,
   client: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>`,
   storage: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="7.5 4.21 12 6.81 16.5 4.21"/><polyline points="7.5 19.79 7.5 14.6 3 12"/><polyline points="21 12 16.5 14.6 16.5 19.79"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`,
   network: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg>`,
-
-  // General purpose icons
+  // Shape-based types
   box: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>`,
   circle: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>`,
   cloud: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>`,
@@ -29,27 +28,23 @@ const ICONS: Record<NodeType, string> = {
   frame: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>`,
   text: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 6H3M21 12H8M11 18H3"/></svg>`,
   note: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M13 2v7h7"/></svg>`,
-  unknown: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
 };
 
 // Semantic color groupings
-// Infrastructure (blue family): servers, clients, network, cloud
-// Data (green family): databases, storage, data sources
-// People (purple family): people, roles, actors
-// Processes (orange family): workflows, operations, transformations
-// Decisions (yellow family): conditionals, gateways
 const NODE_COLORS: Record<NodeType, TLDefaultColorStyle> = {
-  // Infrastructure - Blue family
+  // Semantic types - Infrastructure (Blue family)
   server: 'blue',
   client: 'light-blue',
   network: 'light-violet',
-  cloud: 'light-blue',
-  box: 'blue',
 
-  // Data - Green family
+  // Semantic types - Data (Green family)
   database: 'green',
   storage: 'light-green',
   data: 'light-green',
+
+  // Shape-based - Infrastructure
+  cloud: 'light-blue',
+  box: 'blue',
 
   // People - Purple family
   person: 'violet',
@@ -68,22 +63,23 @@ const NODE_COLORS: Record<NodeType, TLDefaultColorStyle> = {
   // Generic
   circle: 'grey',
   frame: 'grey',
-  unknown: 'grey',
 };
 
 // Distinct pastel colors (readable with good differentiation)
 const SOLID_COLORS: Record<NodeType, string> = {
-  // Infrastructure - Blue (distinct)
+  // Semantic types - Infrastructure (Blue shades)
   server: '#60a5fa',      // Medium blue
   client: '#38bdf8',      // Cyan
   network: '#a78bfa',     // Purple
-  cloud: '#7dd3fc',       // Sky blue
-  box: '#60a5fa',         // Medium blue
 
-  // Data - Green (distinct)
+  // Semantic types - Data (Green shades)
   database: '#4ade80',    // Bright green
   storage: '#86efac',     // Light green
   data: '#34d399',        // Emerald
+
+  // Shape-based - Infrastructure
+  cloud: '#7dd3fc',       // Sky blue
+  box: '#60a5fa',         // Medium blue
 
   // People - Purple/Pink (distinct)
   person: '#e879f9',      // Magenta
@@ -102,7 +98,6 @@ const SOLID_COLORS: Record<NodeType, string> = {
   // Generic
   circle: '#d1d5db',
   frame: '#d1d5db',
-  unknown: '#d1d5db',
 };
 
 // Shape type definition
@@ -143,8 +138,8 @@ export class DiagramNodeUtil extends BaseBoxShapeUtil<DiagramNodeShape> {
 
   component(shape: DiagramNodeShape) {
     const { w, h, color, nodeType, label, description } = shape.props;
-    const icon = ICONS[nodeType] || ICONS.unknown;
-    const bgColor = SOLID_COLORS[nodeType] || SOLID_COLORS.unknown;
+    const icon = ICONS[nodeType] || ICONS.circle;
+    const bgColor = SOLID_COLORS[nodeType] || SOLID_COLORS.circle;
 
     return (
       <HTMLContainer

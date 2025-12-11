@@ -1,14 +1,9 @@
 package com.voiceboard.features.transcription
 
 import io.ktor.client.*
-import io.ktor.client.plugins.websocket.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
-import io.ktor.http.*
-import io.ktor.websocket.*
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -119,87 +114,6 @@ class DeepgramClient(
         } catch (e: Exception) {
             logger.error("Error transcribing audio with Deepgram", e)
             throw IllegalStateException("Transcription failed - please try again")
-        }
-    }
-
-    suspend fun streamAudio(
-        audioChannel: Channel<ByteArray>,
-        transcriptCallback: suspend (String) -> Unit
-    ) = withContext(Dispatchers.IO) {
-        try {
-            // Try encoding=opus for browser MediaRecorder audio
-            val url = "wss://api.deepgram.com/v1/listen?model=nova-2&encoding=opus&smart_format=true&interim_results=false&filler_words=true"
-            logger.info("Connecting to Deepgram WebSocket: $url")
-
-            client.wss(
-                urlString = url,
-                request = {
-                    headers.append("Authorization", "Token $apiKey")
-                }
-            ) {
-                logger.info("Connected to Deepgram successfully")
-                val sendJob = launch {
-                    logger.info("Send job started, reading from audio channel...")
-                    var chunkCount = 0
-                    var totalBytes = 0
-                    for (audioData in audioChannel) {
-                        totalBytes += audioData.size
-                        logger.info("Sending audio chunk #${chunkCount + 1}, size: ${audioData.size} bytes, total: $totalBytes bytes")
-                        send(Frame.Binary(true, audioData))
-                        chunkCount++
-                    }
-                    logger.info("Finished sending audio, sent $chunkCount chunks, $totalBytes total bytes")
-                    send(Frame.Text("{\"type\": \"CloseStream\"}"))
-                }
-
-                val receiveJob = launch {
-                    logger.info("Receive job started, listening for Deepgram responses...")
-                    try {
-                        for (frame in incoming) {
-                            logger.info("Received frame from Deepgram, type: ${frame.frameType}")
-                            when (frame) {
-                                is Frame.Text -> {
-                                    val text = frame.readText()
-                                    logger.info("Deepgram text frame: $text")
-                                    try {
-                                        val response = json.decodeFromString<DeepgramStreamResponse>(text)
-
-                                        // Only process transcript results, ignore metadata
-                                        if (response.type == "Results" && response.channel != null) {
-                                            val transcript = response.channel.alternatives.firstOrNull()?.transcript
-                                            if (!transcript.isNullOrBlank()) {
-                                                logger.info("Transcript: $transcript")
-                                                transcriptCallback(transcript)
-                                            }
-                                        } else {
-                                            logger.info("Received ${response.type} message from Deepgram")
-                                        }
-                                    } catch (e: Exception) {
-                                        logger.warn("Failed to parse Deepgram response: $text", e)
-                                    }
-                                }
-                                is Frame.Close -> {
-                                    val reason = frame.readReason()
-                                    logger.warn("Deepgram closed connection: code=${reason?.code}, message=${reason?.message}")
-                                }
-                                else -> {
-                                    logger.info("Received non-text frame: ${frame.frameType}")
-                                }
-                            }
-                        }
-                    } catch (e: Exception) {
-                        logger.error("Error in receive job", e)
-                    } finally {
-                        logger.info("Receive job ended")
-                    }
-                }
-
-                sendJob.join()
-                receiveJob.join()
-            }
-        } catch (e: Exception) {
-            logger.error("Error in Deepgram streaming", e)
-            throw e
         }
     }
 }

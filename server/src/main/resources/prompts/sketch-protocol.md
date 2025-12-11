@@ -18,7 +18,7 @@ Convert user descriptions into structured JSON for rendering shapes with icons a
       "id": "unique_id",
       "label": "Short main title (2-4 words)",
       "description": "Brief detail (optional, 3-8 words)",
-      "type": "box" | "circle" | "cloud" | "diamond" | "hexagon" | "person" | "process" | "data" | "frame" | "text" | "note" | "database" | "server" | "client" | "storage" | "network" | "unknown",
+      "type": "database" | "server" | "client" | "storage" | "network" | "box" | "circle" | "cloud" | "diamond" | "hexagon" | "person" | "process" | "data" | "frame" | "text" | "note",
       "color": "yellow" | "pink" | "blue" | "light-blue" | "green" | "light-green" | "orange" | "red" | "violet" (optional, for notes),
       "position": "above" | "below" | "left" | "right" | "top" | "bottom" | "top-left" | "top-right" | "bottom-left" | "bottom-right" (optional, for text/notes),
       "relative_to": "node_id" (optional, which node to position relative to. If omitted, position is relative to entire drawing),
@@ -33,25 +33,27 @@ Convert user descriptions into structured JSON for rendering shapes with icons a
 
 ## TYPE GUIDELINES
 
-Choose specific types over generic for better visual distinction:
+Choose SEMANTIC types first for tech/infrastructure, then shape types:
 
+**Semantic Types (PREFERRED for tech diagrams):**
+- **database**: DB systems (PostgreSQL, MongoDB, Redis, MySQL)
+- **server**: backend servers, APIs, web servers, Node.js, Express
+- **client**: frontends, web apps, mobile apps (React, Vue, Angular)
+- **storage**: file storage, S3, blob storage, volumes
+- **network**: load balancers, CDNs, routers, gateways, firewalls
+
+**Shape Types (for general concepts):**
 - **frame**: containers/groupings (e.g., "Backend Services", "Data Layer")
-- **database**: DB systems (PostgreSQL, MongoDB, Redis)
-- **server**: backend servers, APIs, web servers
-- **client**: frontends, mobile apps, web clients
-- **storage**: file storage, object storage, S3, blob storage
-- **network**: load balancers, CDNs, routers, gateways
-- **cloud**: cloud services, SaaS, external APIs
-- **person**: people, roles, actors, teams
-- **process**: workflows, pipelines, operations
-- **data**: data flows, datasets, data sources
-- **diamond**: decisions, conditionals, gateways
-- **hexagon**: processing steps, operations
-- **box**: generic systems, components (use only when no specific type fits)
-- **circle**: states, endpoints, simple concepts
-- **text**: text boxes, headers, paragraphs (supports markdown)
-- **note**: sticky notes, annotations, comments (specify color: yellow/pink/blue/green/orange/red)
-- **unknown**: avoid using
+- **cloud**: cloud platforms, SaaS, external services (AWS, Azure, GCP)
+- **person**: people, roles, actors, teams, users
+- **process**: workflows, pipelines, business processes
+- **data**: data flows, datasets, streams (when not a database)
+- **diamond**: decisions, conditionals, gateways, branches
+- **hexagon**: processing steps, transformations
+- **box**: generic systems (only when semantic types don't fit)
+- **circle**: states, endpoints, events
+- **text**: text boxes, headers, titles, paragraphs
+- **note**: sticky notes, annotations, TODOs, warnings
 
 **Label format**: Short name (2-4 words) + optional description (tech/detail)
 
@@ -209,8 +211,10 @@ Omit `relative_to` for position relative to entire drawing.
     - Create frame BEFORE child nodes, set parent_id on children
     - Move into/out: update_node with parent_id (null to remove)
     - **CRITICAL**: NEVER create edges to/from frames - only to nodes inside them. Edges CAN cross frame boundaries
-14. Choose SPECIFIC types over generic (box, circle):
-    - "API" → server, "PostgreSQL" → database, "React App" → client, "CEO" → person, "Data Pipeline" → process
+14. Choose SEMANTIC types first, then specific shapes:
+    - "API Server" → server, "PostgreSQL" → database, "React App" → client, "Redis" → database, "Load Balancer" → network
+    - "S3 Bucket" → storage, "CEO" → person, "Data Pipeline" → process, "AWS Lambda" → cloud
+    - Use box/circle only when no semantic/specific type fits
 15. Text boxes: titles, headers, paragraphs, captions. Supports markdown
 16. Sticky notes: annotations, TODOs, warnings. Colors: yellow (default/general), pink (important), blue (info), green (success), orange (warning), red (critical)
 17. Position text/notes: Use position field ("above"/"below"/"left"/"right"/"top"/"bottom"/"top-left"/"top-right"/"bottom-left"/"bottom-right")

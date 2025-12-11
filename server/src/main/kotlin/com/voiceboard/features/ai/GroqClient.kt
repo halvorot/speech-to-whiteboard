@@ -5,8 +5,6 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
@@ -69,92 +67,6 @@ class GroqClient(
         } catch (e: Exception) {
             logger.error("Failed to load system prompt from file", e)
             throw IllegalStateException("Could not load system prompt", e)
-        }
-    }
-
-    suspend fun streamCommands(
-        graphSummary: String,
-        userPrompt: String,
-        conversationHistory: String = "No previous commands"
-    ): Flow<String> = flow {
-        withContext(Dispatchers.IO) {
-            try {
-                val userMessage = buildString {
-                    append("Recent commands: $conversationHistory\n\n")
-                    append("Current graph: $graphSummary\n\n")
-                    append("User command: $userPrompt")
-                }
-
-                val request = GroqRequest(
-                    model = "llama-3.3-70b-versatile",
-                    messages = listOf(
-                        GroqMessage("system", systemPrompt),
-                        GroqMessage("user", userMessage)
-                    ),
-                    temperature = 0.1,
-                    stream = true
-                )
-
-                logger.info("Sending request to Groq: $userPrompt")
-
-                val response: HttpResponse = client.post(baseUrl) {
-                    header("Authorization", "Bearer $apiKey")
-                    contentType(ContentType.Application.Json)
-                    setBody(request)
-                }
-
-                val text = response.bodyAsText()
-
-                // Check for error responses
-                if (!response.status.isSuccess()) {
-                    val errorResponse = try {
-                        json.decodeFromString<GroqError>(text)
-                    } catch (e: Exception) {
-                        logger.error("Failed to parse Groq streaming error: $text")
-                        null
-                    }
-
-                    if (errorResponse != null) {
-                        val errorMsg = errorResponse.error.message
-                        logger.error("Error from Groq: $errorMsg")
-
-                        // Handle rate limit errors specially
-                        if (errorResponse.error.code == "rate_limit_exceeded") {
-                            val retryTimeRegex = """try again in (\d+[hms.]+)""".toRegex()
-                            val retryTime = retryTimeRegex.find(errorMsg)?.groupValues?.get(1)?.replace(".072s", "s")
-
-                            if (retryTime != null) {
-                                throw IllegalStateException("AI model rate limit reached. Please try again in $retryTime")
-                            } else {
-                                throw IllegalStateException("AI model rate limit reached. Please try again later")
-                            }
-                        }
-
-                        throw IllegalStateException("AI service error: $errorMsg")
-                    } else {
-                        throw IllegalStateException("AI service error (status ${response.status.value})")
-                    }
-                }
-
-                // Parse streaming response (SSE format)
-                text.lines().forEach { line ->
-                    if (line.startsWith("data: ") && !line.contains("[DONE]")) {
-                        try {
-                            val jsonLine = line.removePrefix("data: ")
-                            val groqResponse = json.decodeFromString<GroqResponse>(jsonLine)
-                            val delta = groqResponse.choices.firstOrNull()?.delta?.content
-                            if (!delta.isNullOrBlank()) {
-                                emit(delta)
-                            }
-                        } catch (e: Exception) {
-                            logger.debug("Failed to parse streaming chunk: $line", e)
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                logger.error("Error in Groq streaming", e)
-                throw e
-            }
         }
     }
 

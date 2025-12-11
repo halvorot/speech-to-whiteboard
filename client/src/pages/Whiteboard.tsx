@@ -249,6 +249,7 @@ export function Whiteboard() {
 
     const handleChange = () => {
       const graphState = graphStateRef.current;
+      let hasChanges = false;
 
       // Get all current shape/arrow IDs on canvas
       const allShapes = Array.from(editor.getCurrentPageShapeIds()).map((id) => editor.getShape(id)!);
@@ -272,6 +273,7 @@ export function Whiteboard() {
       nodesToRemove.forEach((nodeId) => {
         console.log('Syncing deletion of node:', nodeId);
         graphState.nodes.delete(nodeId);
+        hasChanges = true;
         // Remove connected edges
         for (const [edgeId, edge] of graphState.edges) {
           if (edge.sourceId === nodeId || edge.targetId === nodeId) {
@@ -297,6 +299,7 @@ export function Whiteboard() {
       edgesToRemove.forEach((edgeId) => {
         console.log('Syncing deletion of edge:', edgeId);
         graphState.edges.delete(edgeId);
+        hasChanges = true;
       });
 
       // 3. Sync parent changes (nodes moved into/out of frames)
@@ -324,9 +327,17 @@ export function Whiteboard() {
                 ...existingNode,
                 parentId: newParentId,
               });
+              hasChanges = true;
             }
           }
         });
+
+      // Send sync to backend if changes detected
+      if (hasChanges && wsRef.current?.readyState === WebSocket.OPEN) {
+        const graphSync = serializeGraphState(graphState);
+        wsRef.current.send(JSON.stringify(graphSync));
+        console.log('Sent graph sync to backend after manual edit:', graphSync.nodes.length, 'nodes,', graphSync.edges.length, 'edges');
+      }
     };
 
     // Listen to user-initiated changes

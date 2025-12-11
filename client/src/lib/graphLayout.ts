@@ -331,6 +331,104 @@ function calculatePosition(
   return calculateCanvasPosition(node.position || 'right', existingNodes, dims, GAP);
 }
 
+// Helper type for bounding box
+interface BoundingBox {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  centerX: number;
+  centerY: number;
+}
+
+// Calculate bounding box from a single node
+function getBoundingBoxForNode(node: LayoutNode): BoundingBox {
+  return {
+    minX: node.x,
+    maxX: node.x + node.width,
+    minY: node.y,
+    maxY: node.y + node.height,
+    centerX: node.x + node.width / 2,
+    centerY: node.y + node.height / 2,
+  };
+}
+
+// Calculate bounding box from multiple nodes
+function getBoundingBoxForNodes(nodes: LayoutNode[]): BoundingBox {
+  const minX = Math.min(...nodes.map((n) => n.x));
+  const maxX = Math.max(...nodes.map((n) => n.x + n.width));
+  const minY = Math.min(...nodes.map((n) => n.y));
+  const maxY = Math.max(...nodes.map((n) => n.y + n.height));
+
+  return {
+    minX,
+    maxX,
+    minY,
+    maxY,
+    centerX: (minX + maxX) / 2,
+    centerY: (minY + maxY) / 2,
+  };
+}
+
+// Unified position calculation function
+function calculatePositionRelativeTo(
+  position: string,
+  bounds: BoundingBox,
+  dims: { width: number; height: number },
+  gap: number
+): { x: number; y: number } {
+  switch (position.toLowerCase()) {
+    case 'above':
+    case 'top':
+      return {
+        x: bounds.centerX - dims.width / 2,
+        y: bounds.minY - dims.height - gap,
+      };
+    case 'below':
+    case 'bottom':
+      return {
+        x: bounds.centerX - dims.width / 2,
+        y: bounds.maxY + gap,
+      };
+    case 'left':
+      return {
+        x: bounds.minX - dims.width - gap,
+        y: bounds.centerY - dims.height / 2,
+      };
+    case 'right':
+      return {
+        x: bounds.maxX + gap,
+        y: bounds.centerY - dims.height / 2,
+      };
+    case 'top-left':
+      return {
+        x: bounds.minX - dims.width - gap,
+        y: bounds.minY - dims.height - gap,
+      };
+    case 'top-right':
+      return {
+        x: bounds.maxX + gap,
+        y: bounds.minY - dims.height - gap,
+      };
+    case 'bottom-left':
+      return {
+        x: bounds.minX - dims.width - gap,
+        y: bounds.maxY + gap,
+      };
+    case 'bottom-right':
+      return {
+        x: bounds.maxX + gap,
+        y: bounds.maxY + gap,
+      };
+    default:
+      // Default to right
+      return {
+        x: bounds.maxX + gap,
+        y: bounds.centerY - dims.height / 2,
+      };
+  }
+}
+
 // Calculate position relative to a specific node
 function calculateRelativePosition(
   position: string,
@@ -338,59 +436,8 @@ function calculateRelativePosition(
   dims: { width: number; height: number },
   gap: number
 ): { x: number; y: number } {
-  const centerX = targetNode.x + targetNode.width / 2;
-  const centerY = targetNode.y + targetNode.height / 2;
-
-  switch (position.toLowerCase()) {
-    case 'above':
-    case 'top':
-      return {
-        x: centerX - dims.width / 2,
-        y: targetNode.y - dims.height - gap,
-      };
-    case 'below':
-    case 'bottom':
-      return {
-        x: centerX - dims.width / 2,
-        y: targetNode.y + targetNode.height + gap,
-      };
-    case 'left':
-      return {
-        x: targetNode.x - dims.width - gap,
-        y: centerY - dims.height / 2,
-      };
-    case 'right':
-      return {
-        x: targetNode.x + targetNode.width + gap,
-        y: centerY - dims.height / 2,
-      };
-    case 'top-left':
-      return {
-        x: targetNode.x - dims.width - gap,
-        y: targetNode.y - dims.height - gap,
-      };
-    case 'top-right':
-      return {
-        x: targetNode.x + targetNode.width + gap,
-        y: targetNode.y - dims.height - gap,
-      };
-    case 'bottom-left':
-      return {
-        x: targetNode.x - dims.width - gap,
-        y: targetNode.y + targetNode.height + gap,
-      };
-    case 'bottom-right':
-      return {
-        x: targetNode.x + targetNode.width + gap,
-        y: targetNode.y + targetNode.height + gap,
-      };
-    default:
-      // Default to right
-      return {
-        x: targetNode.x + targetNode.width + gap,
-        y: centerY - dims.height / 2,
-      };
-  }
+  const bounds = getBoundingBoxForNode(targetNode);
+  return calculatePositionRelativeTo(position, bounds, dims, gap);
 }
 
 // Calculate position relative to entire canvas
@@ -404,65 +451,8 @@ function calculateCanvasPosition(
     return { x: 0, y: 0 };
   }
 
-  // Calculate bounding box of existing nodes
-  const minX = Math.min(...existingNodes.map((n) => n.x));
-  const maxX = Math.max(...existingNodes.map((n) => n.x + n.width));
-  const minY = Math.min(...existingNodes.map((n) => n.y));
-  const maxY = Math.max(...existingNodes.map((n) => n.y + n.height));
-
-  const centerX = (minX + maxX) / 2;
-  const centerY = (minY + maxY) / 2;
-
-  switch (position.toLowerCase()) {
-    case 'above':
-    case 'top':
-      return {
-        x: centerX - dims.width / 2,
-        y: minY - dims.height - gap,
-      };
-    case 'below':
-    case 'bottom':
-      return {
-        x: centerX - dims.width / 2,
-        y: maxY + gap,
-      };
-    case 'left':
-      return {
-        x: minX - dims.width - gap,
-        y: centerY - dims.height / 2,
-      };
-    case 'right':
-      return {
-        x: maxX + gap,
-        y: centerY - dims.height / 2,
-      };
-    case 'top-left':
-      return {
-        x: minX - dims.width - gap,
-        y: minY - dims.height - gap,
-      };
-    case 'top-right':
-      return {
-        x: maxX + gap,
-        y: minY - dims.height - gap,
-      };
-    case 'bottom-left':
-      return {
-        x: minX - dims.width - gap,
-        y: maxY + gap,
-      };
-    case 'bottom-right':
-      return {
-        x: maxX + gap,
-        y: maxY + gap,
-      };
-    default:
-      // Default to right of drawing
-      return {
-        x: maxX + gap,
-        y: centerY - dims.height / 2,
-      };
-  }
+  const bounds = getBoundingBoxForNodes(existingNodes);
+  return calculatePositionRelativeTo(position, bounds, dims, gap);
 }
 
 // Helper to get tldraw shape ID from node ID
