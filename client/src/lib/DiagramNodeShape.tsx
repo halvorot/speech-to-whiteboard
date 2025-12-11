@@ -5,7 +5,9 @@ import {
   type TLBaseShape,
   type TLDefaultColorStyle,
   type TLResizeInfo,
+  useEditor,
 } from 'tldraw';
+import { useEffect, useRef, useState } from 'react';
 import type { NodeType } from '../types/sketch';
 
 // Icon SVG library
@@ -65,40 +67,27 @@ const NODE_COLORS: Record<NodeType, TLDefaultColorStyle> = {
   frame: 'grey',
 };
 
-// Distinct pastel colors (readable with good differentiation)
-const SOLID_COLORS: Record<NodeType, string> = {
-  // Semantic types - Infrastructure (Blue shades)
-  server: '#60a5fa',      // Medium blue
-  client: '#38bdf8',      // Cyan
-  network: '#a78bfa',     // Purple
-
-  // Semantic types - Data (Green shades)
-  database: '#4ade80',    // Bright green
-  storage: '#86efac',     // Light green
-  data: '#34d399',        // Emerald
-
-  // Shape-based - Infrastructure
-  cloud: '#7dd3fc',       // Sky blue
-  box: '#60a5fa',         // Medium blue
-
-  // People - Purple/Pink (distinct)
-  person: '#e879f9',      // Magenta
-
-  // Processes - Orange/Red (distinct)
-  process: '#fb923c',     // Orange
-  hexagon: '#f87171',     // Red
-
-  // Decisions - Yellow (distinct)
-  diamond: '#facc15',     // Yellow
-
-  // Text and notes
-  text: '#e5e7eb',        // Light grey
-  note: '#fef08a',        // Light yellow
-
-  // Generic
-  circle: '#d1d5db',
-  frame: '#d1d5db',
+// Map TLDefaultColorStyle to hex colors
+const COLOR_HEX_MAP: Record<TLDefaultColorStyle, string> = {
+  black: '#1d1d1d',
+  grey: '#d1d5db',
+  'light-violet': '#ddd6fe',
+  violet: '#a78bfa',
+  blue: '#60a5fa',
+  'light-blue': '#7dd3fc',
+  yellow: '#facc15',
+  orange: '#fb923c',
+  green: '#4ade80',
+  'light-green': '#86efac',
+  'light-red': '#fca5a5',
+  red: '#f87171',
+  white: '#ffffff',
 };
+
+// Helper to get hex color from TLDefaultColorStyle
+function getColorHex(colorStyle: TLDefaultColorStyle): string {
+  return COLOR_HEX_MAP[colorStyle] || COLOR_HEX_MAP.grey;
+}
 
 // Shape type definition
 export type DiagramNodeShape = TLBaseShape<
@@ -136,10 +125,77 @@ export class DiagramNodeUtil extends BaseBoxShapeUtil<DiagramNodeShape> {
     });
   }
 
+  override canEdit = () => true;
+
   component(shape: DiagramNodeShape) {
     const { w, h, color, nodeType, label, description } = shape.props;
     const icon = ICONS[nodeType] || ICONS.circle;
-    const bgColor = SOLID_COLORS[nodeType] || SOLID_COLORS.circle;
+
+    // Use manual color override if set, otherwise auto-color based on type
+    const effectiveColor = color || NODE_COLORS[nodeType] || 'grey';
+    const bgColor = getColorHex(effectiveColor);
+
+    const editor = useEditor();
+    const isEditing = editor.getEditingShapeId() === shape.id;
+
+    const [editingLabel, setEditingLabel] = useState(label);
+    const [editingDescription, setEditingDescription] = useState(description);
+    const labelInputRef = useRef<HTMLInputElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    // Focus label input when entering edit mode
+    useEffect(() => {
+      if (isEditing && labelInputRef.current) {
+        labelInputRef.current.focus();
+        labelInputRef.current.select();
+      }
+    }, [isEditing]);
+
+    // Update local state when props change (from external sources)
+    useEffect(() => {
+      setEditingLabel(label);
+      setEditingDescription(description);
+    }, [label, description]);
+
+    const saveChanges = () => {
+      // Update shape props when done editing
+      editor.updateShape({
+        id: shape.id,
+        type: 'diagram-node',
+        props: {
+          label: editingLabel || 'Node',
+          description: editingDescription,
+        },
+      });
+      editor.setEditingShape(null);
+    };
+
+    const handleBlur = (e: React.FocusEvent) => {
+      // Only exit edit mode if focus is leaving the container entirely
+      // If clicking between label and description inputs, stay in edit mode
+      const relatedTarget = e.relatedTarget as HTMLElement;
+      if (relatedTarget && containerRef.current?.contains(relatedTarget)) {
+        // Focus is moving to another input in this container, don't exit edit mode
+        return;
+      }
+      // Focus left the container, save changes
+      saveChanges();
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        saveChanges();
+      } else if (e.key === 'Escape') {
+        // Revert changes
+        setEditingLabel(label);
+        setEditingDescription(description);
+        editor.setEditingShape(null);
+      } else if (e.key === 'Tab') {
+        // Allow tab to move between inputs without closing edit mode
+        // Default tab behavior will handle focus movement
+      }
+    };
 
     return (
       <HTMLContainer
@@ -152,56 +208,107 @@ export class DiagramNodeUtil extends BaseBoxShapeUtil<DiagramNodeShape> {
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: bgColor,
-          border: `2px solid var(--color-${color}-text)`,
+          border: `2px solid var(--color-${effectiveColor}-text)`,
           borderRadius: '8px',
           padding: '12px',
           boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
           pointerEvents: 'all',
         }}
       >
+        <div ref={containerRef} style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         {/* Icon */}
         <div
           style={{
             width: '32px',
             height: '32px',
             marginBottom: '8px',
-            color: `var(--color-${color}-text)`,
+            color: `var(--color-${effectiveColor}-text)`,
           }}
           dangerouslySetInnerHTML={{ __html: icon }}
         />
 
-        {/* Label */}
-        <div
-          style={{
-            fontSize: '14px',
-            fontWeight: '600',
-            color: `var(--color-${color}-text)`,
-            textAlign: 'center',
-            marginBottom: description ? '4px' : '0',
-            lineHeight: '1.2',
-            wordBreak: 'break-word',
-            maxWidth: '100%',
-          }}
-        >
-          {label}
-        </div>
-
-        {/* Description */}
-        {description && (
+        {/* Label - editable */}
+        {isEditing ? (
+          <input
+            ref={labelInputRef}
+            type="text"
+            value={editingLabel}
+            onChange={(e) => setEditingLabel(e.target.value)}
+            onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
+            style={{
+              fontSize: '14px',
+              fontWeight: '600',
+              color: `var(--color-${effectiveColor}-text)`,
+              textAlign: 'center',
+              marginBottom: '4px',
+              lineHeight: '1.2',
+              maxWidth: '100%',
+              width: '90%',
+              background: 'rgba(255, 255, 255, 0.9)',
+              border: '1px solid var(--color-text)',
+              borderRadius: '4px',
+              padding: '4px',
+            }}
+            placeholder="Label"
+          />
+        ) : (
           <div
             style={{
-              fontSize: '11px',
-              color: `var(--color-${color}-text)`,
-              opacity: 0.8,
+              fontSize: '14px',
+              fontWeight: '600',
+              color: `var(--color-${effectiveColor}-text)`,
               textAlign: 'center',
-              lineHeight: '1.3',
+              marginBottom: description ? '4px' : '0',
+              lineHeight: '1.2',
               wordBreak: 'break-word',
               maxWidth: '100%',
             }}
           >
-            {description}
+            {label}
           </div>
         )}
+
+        {/* Description - editable */}
+        {isEditing ? (
+          <input
+            type="text"
+            value={editingDescription}
+            onChange={(e) => setEditingDescription(e.target.value)}
+            onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
+            style={{
+              fontSize: '11px',
+              color: `var(--color-${effectiveColor}-text)`,
+              textAlign: 'center',
+              lineHeight: '1.3',
+              maxWidth: '100%',
+              width: '90%',
+              background: 'rgba(255, 255, 255, 0.9)',
+              border: '1px solid var(--color-text)',
+              borderRadius: '4px',
+              padding: '4px',
+            }}
+            placeholder="Description (optional)"
+          />
+        ) : (
+          description && (
+            <div
+              style={{
+                fontSize: '11px',
+                color: `var(--color-${effectiveColor}-text)`,
+                opacity: 0.8,
+                textAlign: 'center',
+                lineHeight: '1.3',
+                wordBreak: 'break-word',
+                maxWidth: '100%',
+              }}
+            >
+              {description}
+            </div>
+          )
+        )}
+        </div>
       </HTMLContainer>
     );
   }

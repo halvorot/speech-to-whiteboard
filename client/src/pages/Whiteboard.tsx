@@ -7,6 +7,7 @@ import { renderLayout } from '../lib/tldrawShapes';
 import { DiagramNodeUtil } from '../lib/DiagramNodeShape';
 import { StatusBanner } from '../components/StatusBanner';
 import { ToastContainer } from '../components/Toast';
+import { DiagramNodeToolbar } from '../components/DiagramNodeToolbar';
 import type { SketchResponse } from '../types/sketch';
 import type { AppStatus, StatusMessage } from '../types/status';
 
@@ -329,6 +330,30 @@ export function Whiteboard() {
               });
               hasChanges = true;
             }
+
+            // 4. Sync property changes (label, description, type, color)
+            // Check if shape props changed
+            const shapeProps = (shape as any).props;
+            if (shapeProps) {
+              const { label, description, nodeType, color } = shapeProps;
+
+              if (
+                label !== existingNode.label ||
+                description !== existingNode.description ||
+                nodeType !== existingNode.type ||
+                color !== existingNode.color
+              ) {
+                console.log(`Syncing property change for ${nodeId}`);
+                graphState.nodes.set(nodeId, {
+                  ...existingNode,
+                  label: label || existingNode.label,
+                  description: description !== undefined ? description : existingNode.description,
+                  type: nodeType || existingNode.type,
+                  color: color || existingNode.color,
+                });
+                hasChanges = true;
+              }
+            }
           }
         });
 
@@ -454,6 +479,8 @@ export function Whiteboard() {
           onMount={setEditor}
           shapeUtils={customShapeUtils}
         />
+        {/* Diagram node toolbar - shown when a node is selected */}
+        {editor && <DiagramNodeToolbar editor={editor} />}
       </div>
 
       {/* Toast notifications */}

@@ -185,7 +185,10 @@ fun Application.module() {
                                 val syncMessage = Json.decodeFromString(GraphSyncMessage.serializer(), text)
                                 if (syncMessage.type == "graph_sync") {
                                     graphState.syncFrom(syncMessage)
-                                    logger.info("Graph state synced: ${syncMessage.nodes.size} nodes, ${syncMessage.edges.size} edges")
+                                    logger.info("Graph state synced: ${syncMessage.nodes.size} nodes, ${syncMessage.edges.size} edges." +
+                                            "\nNodes: ${syncMessage.nodes}" +
+                                            "\nEdges: ${syncMessage.edges}"
+                                    )
                                 }
                             } catch (e: Exception) {
                                 // Not a graph sync message, ignore
