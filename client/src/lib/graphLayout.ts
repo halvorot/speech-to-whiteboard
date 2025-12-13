@@ -76,6 +76,113 @@ export function createGraphState(): GraphState {
   };
 }
 
+// Type definitions for tldraw snapshot structure (internal tldraw types)
+interface TLRecord {
+  typeName: string;
+  id: string;
+  type?: string;
+  parentId?: string;
+  props?: Record<string, unknown>;
+  fromId?: string;
+  toId?: string;
+}
+
+// Extract graph state from tldraw snapshot
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function extractGraphFromSnapshot(snapshot: any): GraphState {
+  const graphState = createGraphState();
+
+  if (!snapshot || !snapshot.store) {
+    return graphState;
+  }
+
+  const shapes = Object.values(snapshot.store).filter((record: unknown) => (record as TLRecord).typeName === 'shape') as TLRecord[];
+
+  // Extract diagram-node shapes
+  for (const shape of shapes) {
+    if (shape.type === 'diagram-node') {
+      const nodeId = shape.id.replace('shape:', '');
+      const props = shape.props as Record<string, string> | undefined;
+
+      // Only set parentId if it's a frame shape, not a page
+      let parentId: string | undefined = undefined;
+      if (shape.parentId && !shape.parentId.startsWith('page:')) {
+        const parentIdStr = shape.parentId.replace('shape:', '');
+        // Verify parent is actually a frame node
+        const parentShape = shapes.find((p) => p.id === shape.parentId);
+        if (parentShape && parentShape.type === 'frame') {
+          parentId = parentIdStr;
+        }
+      }
+
+      graphState.nodes.set(nodeId, {
+        id: nodeId,
+        label: (props?.label as string) || 'Node',
+        description: (props?.description as string) || '',
+        type: (props?.nodeType as NodeType) || 'box',
+        parentId,
+        color: props?.color as string | undefined,
+      });
+    }
+  }
+
+  // Extract arrow shapes and their bindings (tldraw v4 stores bindings separately)
+  const arrows = shapes.filter((s) => s.type === 'arrow') as TLRecord[];
+  const bindings = Object.values(snapshot.store).filter((record: unknown) => {
+    const r = record as TLRecord;
+    return r.typeName === 'binding' && r.type === 'arrow';
+  }) as TLRecord[];
+
+  for (const arrow of arrows) {
+    const arrowId = arrow.id;
+    const edgeId = arrowId.replace('shape:arrow_', '').replace('shape:', '');
+    const arrowProps = arrow.props as Record<string, string> | undefined;
+
+    // Find bindings for this arrow
+    const arrowBindings = bindings.filter((b) => b.fromId === arrowId);
+    const startBinding = arrowBindings.find((b) => {
+      const bindingProps = b.props as Record<string, string> | undefined;
+      return bindingProps?.terminal === 'start';
+    });
+    const endBinding = arrowBindings.find((b) => {
+      const bindingProps = b.props as Record<string, string> | undefined;
+      return bindingProps?.terminal === 'end';
+    });
+
+    // Only track arrows that are bound to both source and target
+    if (startBinding && endBinding && startBinding.toId && endBinding.toId) {
+      const sourceId = startBinding.toId.replace('shape:', '');
+      const targetId = endBinding.toId.replace('shape:', '');
+
+      // Check if bidirectional (has arrowhead on both ends)
+      const isBidirectional = arrowProps?.arrowheadStart === 'arrow' && arrowProps?.arrowheadEnd === 'arrow';
+
+      graphState.edges.set(edgeId, {
+        id: edgeId,
+        sourceId,
+        targetId,
+        bidirectional: isBidirectional,
+      });
+    }
+  }
+
+  // Clean up orphaned edges (edges referencing non-existent nodes)
+  // This handles cases where nodes were deleted but edges weren't cleaned up
+  const validNodeIds = new Set(graphState.nodes.keys());
+  const orphanedEdges: string[] = [];
+
+  for (const [edgeId, edge] of graphState.edges) {
+    if (!validNodeIds.has(edge.sourceId) || !validNodeIds.has(edge.targetId)) {
+      orphanedEdges.push(edgeId);
+      console.log(`Removing orphaned edge ${edgeId}: ${edge.sourceId} -> ${edge.targetId}`);
+    }
+  }
+
+  orphanedEdges.forEach((edgeId) => graphState.edges.delete(edgeId));
+
+  return graphState;
+}
+
 export function applyAction(state: GraphState, action: SketchAction): boolean {
   switch (action.action) {
     case 'create_node':

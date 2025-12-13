@@ -2,6 +2,7 @@ package com.voiceboard
 
 import com.voiceboard.features.ai.GraphStateManager
 import com.voiceboard.features.ai.GraphSyncMessage
+import com.voiceboard.features.ai.CanvasSyncMessage
 import com.voiceboard.features.ai.GroqClient
 import com.voiceboard.features.ai.SketchResponse
 import com.voiceboard.features.auth.JwtVerifier
@@ -180,19 +181,28 @@ fun Application.module() {
                             val text = frame.readText()
                             logger.debug("Received text message: $text")
 
-                            // Try to parse as graph sync message
+                            // Try to parse as canvas sync message (new format with snapshot)
                             try {
-                                val syncMessage = Json.decodeFromString(GraphSyncMessage.serializer(), text)
-                                if (syncMessage.type == "graph_sync") {
-                                    graphState.syncFrom(syncMessage)
-                                    logger.info("Graph state synced: ${syncMessage.nodes.size} nodes, ${syncMessage.edges.size} edges." +
-                                            "\nNodes: ${syncMessage.nodes}" +
-                                            "\nEdges: ${syncMessage.edges}"
-                                    )
+                                val canvasSync = Json.decodeFromString(CanvasSyncMessage.serializer(), text)
+                                if (canvasSync.type == "canvas_sync") {
+                                    // Store full snapshot
+                                    graphState.canvasSnapshot = canvasSync.snapshot
+                                    // Sync extracted graph
+                                    graphState.syncFrom(canvasSync.graph)
+                                    logger.info("Canvas synced: ${canvasSync.graph.nodes.size} nodes, ${canvasSync.graph.edges.size} edges, snapshot stored")
                                 }
                             } catch (e: Exception) {
-                                // Not a graph sync message, ignore
-                                logger.debug("Text message is not a graph sync: ${e.message}")
+                                // Try old graph_sync format for backwards compatibility
+                                try {
+                                    val syncMessage = Json.decodeFromString(GraphSyncMessage.serializer(), text)
+                                    if (syncMessage.type == "graph_sync") {
+                                        graphState.syncFrom(syncMessage)
+                                        logger.info("Graph state synced (legacy): ${syncMessage.nodes.size} nodes, ${syncMessage.edges.size} edges")
+                                    }
+                                } catch (e2: Exception) {
+                                    // Not a sync message, ignore
+                                    logger.debug("Text message is not a sync message: ${e.message}")
+                                }
                             }
                         }
                         else -> {}

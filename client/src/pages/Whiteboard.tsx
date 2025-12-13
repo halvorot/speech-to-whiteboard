@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Tldraw, type Editor } from 'tldraw';
+import { Tldraw, type Editor, getSnapshot } from 'tldraw';
 import 'tldraw/tldraw.css';
 import { useAuth } from '../contexts/AuthContext';
-import { createGraphState, applyAction, layoutGraph, serializeGraphState, type GraphState } from '../lib/graphLayout';
+import { createGraphState, applyAction, layoutGraph, serializeGraphState, extractGraphFromSnapshot, type GraphState } from '../lib/graphLayout';
 import { renderLayout } from '../lib/tldrawShapes';
 import { DiagramNodeUtil } from '../lib/DiagramNodeShape';
 import { StatusBanner } from '../components/StatusBanner';
@@ -244,131 +244,56 @@ export function Whiteboard() {
     }
   };
 
-  // Sync manual canvas edits back to graph state (structure only, not layout)
+  // Sync canvas changes to backend (snapshot + extracted graph)
   useEffect(() => {
     if (!editor) return;
 
+    let debounceTimer: number | null = null;
+
     const handleChange = () => {
-      const graphState = graphStateRef.current;
-      let hasChanges = false;
-
-      // Get all current shape/arrow IDs on canvas
-      const allShapes = Array.from(editor.getCurrentPageShapeIds()).map((id) => editor.getShape(id)!);
-
-      // 1. Sync node deletions
-      const canvasNodeIds = new Set(
-        allShapes
-          .filter((s) => s.type === 'diagram-node' || s.type === 'text' || s.type === 'note')
-          .map((s) => s.id.replace('shape:', ''))
-      );
-
-      const nodesToRemove: string[] = [];
-      for (const [nodeId, node] of graphState.nodes) {
-        // Skip frames - they're containers
-        if (node.type === 'frame') continue;
-        if (!canvasNodeIds.has(nodeId)) {
-          nodesToRemove.push(nodeId);
-        }
+      // Debounce: wait 500ms after last change before syncing
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
       }
 
-      nodesToRemove.forEach((nodeId) => {
-        console.log('Syncing deletion of node:', nodeId);
-        graphState.nodes.delete(nodeId);
-        hasChanges = true;
-        // Remove connected edges
-        for (const [edgeId, edge] of graphState.edges) {
-          if (edge.sourceId === nodeId || edge.targetId === nodeId) {
-            graphState.edges.delete(edgeId);
-          }
+      debounceTimer = window.setTimeout(() => {
+        // Get full canvas snapshot (document only, not session)
+        const { document } = getSnapshot(editor.store);
+
+        // Extract graph state from snapshot for AI context
+        const graphState = extractGraphFromSnapshot(document);
+        graphStateRef.current = graphState;
+
+        // Send both snapshot and graph to backend
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          const syncMessage = {
+            type: 'canvas_sync',
+            snapshot: JSON.stringify(document), // Serialize snapshot to string
+            graph: serializeGraphState(graphState),
+          };
+
+          wsRef.current.send(JSON.stringify(syncMessage));
+          console.log(
+            'Synced to backend:',
+            graphState.nodes.size,
+            'nodes,',
+            graphState.edges.size,
+            'edges,',
+            'snapshot size:',
+            JSON.stringify(document).length,
+            'bytes'
+          );
         }
-      });
-
-      // 2. Sync edge deletions (manually deleted arrows)
-      const canvasArrowIds = new Set(
-        allShapes
-          .filter((s) => s.type === 'arrow' && s.id.toString().startsWith('shape:arrow_'))
-          .map((s) => s.id.replace('shape:arrow_', ''))
-      );
-
-      const edgesToRemove: string[] = [];
-      for (const [edgeId] of graphState.edges) {
-        if (!canvasArrowIds.has(edgeId)) {
-          edgesToRemove.push(edgeId);
-        }
-      }
-
-      edgesToRemove.forEach((edgeId) => {
-        console.log('Syncing deletion of edge:', edgeId);
-        graphState.edges.delete(edgeId);
-        hasChanges = true;
-      });
-
-      // 3. Sync parent changes (nodes moved into/out of frames)
-      // Check if any diagram-node's parent has changed in tldraw
-      allShapes
-        .filter((s) => s.type === 'diagram-node')
-        .forEach((shape) => {
-          const nodeId = shape.id.replace('shape:', '');
-          const existingNode = graphState.nodes.get(nodeId);
-
-          if (existingNode) {
-            // Get the shape's current parent in tldraw
-            const tldrawParent = shape.parentId;
-            const tldrawParentNodeId = tldrawParent?.toString().replace('shape:', '');
-
-            // Check if parent changed
-            const currentParentId = existingNode.parentId;
-            const newParentId = tldrawParentNodeId && graphState.nodes.get(tldrawParentNodeId)?.type === 'frame'
-              ? tldrawParentNodeId
-              : undefined;
-
-            if (currentParentId !== newParentId) {
-              console.log(`Syncing parent change for ${nodeId}: ${currentParentId} → ${newParentId}`);
-              graphState.nodes.set(nodeId, {
-                ...existingNode,
-                parentId: newParentId,
-              });
-              hasChanges = true;
-            }
-
-            // 4. Sync property changes (label, description, type, color)
-            // Check if shape props changed
-            const shapeProps = (shape as any).props;
-            if (shapeProps) {
-              const { label, description, nodeType, color } = shapeProps;
-
-              if (
-                label !== existingNode.label ||
-                description !== existingNode.description ||
-                nodeType !== existingNode.type ||
-                color !== existingNode.color
-              ) {
-                console.log(`Syncing property change for ${nodeId}`);
-                graphState.nodes.set(nodeId, {
-                  ...existingNode,
-                  label: label || existingNode.label,
-                  description: description !== undefined ? description : existingNode.description,
-                  type: nodeType || existingNode.type,
-                  color: color || existingNode.color,
-                });
-                hasChanges = true;
-              }
-            }
-          }
-        });
-
-      // Send sync to backend if changes detected
-      if (hasChanges && wsRef.current?.readyState === WebSocket.OPEN) {
-        const graphSync = serializeGraphState(graphState);
-        wsRef.current.send(JSON.stringify(graphSync));
-        console.log('Sent graph sync to backend after manual edit:', graphSync.nodes.length, 'nodes,', graphSync.edges.length, 'edges');
-      }
+      }, 500);
     };
 
-    // Listen to user-initiated changes
+    // Listen to all document changes from user
     const dispose = editor.store.listen(handleChange, { scope: 'document', source: 'user' });
 
     return () => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
       dispose();
     };
   }, [editor]);

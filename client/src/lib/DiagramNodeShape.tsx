@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import {
   BaseBoxShapeUtil,
   HTMLContainer,
@@ -102,120 +103,90 @@ export type DiagramNodeShape = TLBaseShape<
   }
 >;
 
-// Shape util class
-export class DiagramNodeUtil extends BaseBoxShapeUtil<DiagramNodeShape> {
-  static override type = 'diagram-node' as const;
+// Functional component that can use hooks
+function DiagramNodeComponent({ shape }: { shape: DiagramNodeShape }) {
+  const { w, h, color, nodeType, label, description } = shape.props;
+  const icon = ICONS[nodeType] || ICONS.circle;
 
-  getDefaultProps(): DiagramNodeShape['props'] {
-    return {
-      w: 200,
-      h: 120,
-      color: 'grey',
-      nodeType: 'box',
-      label: 'Node',
-      description: '',
-    };
-  }
+  // Use manual color override if set, otherwise auto-color based on type
+  const effectiveColor = color || NODE_COLORS[nodeType] || 'grey';
+  const bgColor = getColorHex(effectiveColor);
 
-  getGeometry(shape: DiagramNodeShape) {
-    return new Rectangle2d({
-      width: shape.props.w,
-      height: shape.props.h,
-      isFilled: true,
+  const editor = useEditor();
+  const isEditing = editor.getEditingShapeId() === shape.id;
+
+  const [editingLabel, setEditingLabel] = useState(label);
+  const [editingDescription, setEditingDescription] = useState(description);
+  const labelInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Focus label input when entering edit mode
+  useEffect(() => {
+    if (isEditing && labelInputRef.current) {
+      labelInputRef.current.focus();
+      labelInputRef.current.select();
+    }
+  }, [isEditing]);
+
+  // Update local state when props change (from external sources)
+  useEffect(() => {
+    setEditingLabel(label); // eslint-disable-line react-hooks/set-state-in-effect
+    setEditingDescription(description);
+  }, [label, description]);
+
+  const saveChanges = () => {
+    // Update shape props when done editing
+    editor.updateShape({
+      id: shape.id,
+      type: 'diagram-node',
+      props: {
+        label: editingLabel || 'Node',
+        description: editingDescription,
+      },
     });
-  }
+    editor.setEditingShape(null);
+  };
 
-  override canEdit = () => true;
+  const handleBlur = (e: React.FocusEvent) => {
+    // Only exit edit mode if focus is leaving the container entirely
+    const relatedTarget = e.relatedTarget as HTMLElement;
+    if (relatedTarget && containerRef.current?.contains(relatedTarget)) {
+      return;
+    }
+    saveChanges();
+  };
 
-  component(shape: DiagramNodeShape) {
-    const { w, h, color, nodeType, label, description } = shape.props;
-    const icon = ICONS[nodeType] || ICONS.circle;
-
-    // Use manual color override if set, otherwise auto-color based on type
-    const effectiveColor = color || NODE_COLORS[nodeType] || 'grey';
-    const bgColor = getColorHex(effectiveColor);
-
-    const editor = useEditor();
-    const isEditing = editor.getEditingShapeId() === shape.id;
-
-    const [editingLabel, setEditingLabel] = useState(label);
-    const [editingDescription, setEditingDescription] = useState(description);
-    const labelInputRef = useRef<HTMLInputElement>(null);
-    const containerRef = useRef<HTMLDivElement>(null);
-
-    // Focus label input when entering edit mode
-    useEffect(() => {
-      if (isEditing && labelInputRef.current) {
-        labelInputRef.current.focus();
-        labelInputRef.current.select();
-      }
-    }, [isEditing]);
-
-    // Update local state when props change (from external sources)
-    useEffect(() => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      saveChanges();
+    } else if (e.key === 'Escape') {
+      // Revert changes
       setEditingLabel(label);
       setEditingDescription(description);
-    }, [label, description]);
-
-    const saveChanges = () => {
-      // Update shape props when done editing
-      editor.updateShape({
-        id: shape.id,
-        type: 'diagram-node',
-        props: {
-          label: editingLabel || 'Node',
-          description: editingDescription,
-        },
-      });
       editor.setEditingShape(null);
-    };
+    }
+  };
 
-    const handleBlur = (e: React.FocusEvent) => {
-      // Only exit edit mode if focus is leaving the container entirely
-      // If clicking between label and description inputs, stay in edit mode
-      const relatedTarget = e.relatedTarget as HTMLElement;
-      if (relatedTarget && containerRef.current?.contains(relatedTarget)) {
-        // Focus is moving to another input in this container, don't exit edit mode
-        return;
-      }
-      // Focus left the container, save changes
-      saveChanges();
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        saveChanges();
-      } else if (e.key === 'Escape') {
-        // Revert changes
-        setEditingLabel(label);
-        setEditingDescription(description);
-        editor.setEditingShape(null);
-      } else if (e.key === 'Tab') {
-        // Allow tab to move between inputs without closing edit mode
-        // Default tab behavior will handle focus movement
-      }
-    };
-
-    return (
-      <HTMLContainer
-        id={shape.id}
-        style={{
-          width: w,
-          height: h,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: bgColor,
-          border: `2px solid var(--color-${effectiveColor}-text)`,
-          borderRadius: '8px',
-          padding: '12px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          pointerEvents: 'all',
-        }}
-      >
-        <div ref={containerRef} style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+  return (
+    <HTMLContainer
+      id={shape.id}
+      style={{
+        width: w,
+        height: h,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: bgColor,
+        border: `2px solid var(--color-${effectiveColor}-text)`,
+        borderRadius: '8px',
+        padding: '12px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        pointerEvents: 'all',
+      }}
+    >
+      <div ref={containerRef} style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         {/* Icon */}
         <div
           style={{
@@ -308,9 +279,38 @@ export class DiagramNodeUtil extends BaseBoxShapeUtil<DiagramNodeShape> {
             </div>
           )
         )}
-        </div>
-      </HTMLContainer>
-    );
+      </div>
+    </HTMLContainer>
+  );
+}
+
+// Shape util class
+export class DiagramNodeUtil extends BaseBoxShapeUtil<DiagramNodeShape> {
+  static override type = 'diagram-node' as const;
+
+  getDefaultProps(): DiagramNodeShape['props'] {
+    return {
+      w: 200,
+      h: 120,
+      color: 'grey',
+      nodeType: 'box',
+      label: 'Node',
+      description: '',
+    };
+  }
+
+  getGeometry(shape: DiagramNodeShape) {
+    return new Rectangle2d({
+      width: shape.props.w,
+      height: shape.props.h,
+      isFilled: true,
+    });
+  }
+
+  override canEdit = () => true;
+
+  component(shape: DiagramNodeShape) {
+    return <DiagramNodeComponent shape={shape} />;
   }
 
   indicator(shape: DiagramNodeShape) {

@@ -88,3 +88,10 @@ data class GraphSyncMessage(
     val nodes: List<SerializedGraphNode>,
     val edges: List<SerializedGraphEdge>
 )
+
+@Serializable
+data class CanvasSyncMessage(
+    val type: String,
+    val snapshot: String, // Full tldraw snapshot as JSON string
+    val graph: GraphSyncMessage // Extracted graph for AI context
+)

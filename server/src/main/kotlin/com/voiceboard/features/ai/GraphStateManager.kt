@@ -22,7 +22,8 @@ data class GraphEdge(
 data class GraphState(
     val nodes: MutableMap<String, GraphNode> = mutableMapOf(),
     val edges: MutableSet<GraphEdge> = mutableSetOf(),
-    val conversationHistory: MutableList<String> = mutableListOf()
+    val conversationHistory: MutableList<String> = mutableListOf(),
+    var canvasSnapshot: String? = null // Store full tldraw snapshot as JSON string
 ) {
     companion object {
         const val MAX_HISTORY_SIZE = 5 // Limit to last 5 commands for cost control
@@ -40,6 +41,7 @@ data class GraphState(
         if (conversationHistory.isEmpty()) return "No previous commands"
         return conversationHistory.joinToString(" → ")
     }
+
     fun syncFrom(syncMessage: GraphSyncMessage) {
         // Clear existing state
         nodes.clear()
