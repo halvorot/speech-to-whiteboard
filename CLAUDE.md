@@ -24,7 +24,7 @@
 
 ### Infrastructure & Data
 * **Database/Auth:** Supabase (Postgres + GoTrue/Auth).
-* **Deployment:** Docker container (Backend), Static site (Frontend).
+* **Deployment:** Docker container (one for Backend and one for Frontend)
 
 ## 3. Architecture & Data Flow
 1. **Audio:** Browser Mic -> WebSocket -> Ktor -> Deepgram (Stream) -> Transcript.
@@ -129,9 +129,9 @@ Use this checklist to track progress. **Do not skip stages.**
     - [ ] UI: Render Markdown response in side panel.
 
 - [ ] **Stage 5: Persistence**
-    - [ ] Save graph state to Supabase per user.
-    - [ ] Load graph state on WebSocket connect.
-    - [ ] Auto-save on graph changes.
+    - [ ] Save canvas to Supabase per user.
+    - [ ] Load canvas on WebSocket connect.
+    - [ ] Auto-save on canvas changes.
 
 - [ ] **Stage 6: Multi-Language Support**
     - [ ] Add language selection UI component.
@@ -157,32 +157,4 @@ Use this checklist to track progress. **Do not skip stages.**
 **Temperature:** 0.1
 **Response Format:** JSON Object
 
-**System Prompt Content:**
-```text
-You are the core logic engine for a real-time whiteboard application.
-Your goal is to translate spoken user intentions into structured JSON graph operations.
-
-INPUTS:
-1. "current_graph_summary": List of existing node IDs/labels.
-2. "user_prompt": The spoken command.
-
-OUTPUT SCHEMA:
-{
-  "actions": [
-    {
-      "action": "create_node" | "update_node" | "delete_node" | "create_edge" | "delete_edge",
-      "id": "string (short, readable, e.g., 'web_server_1')",
-      "label": "string",
-      "type": "database" | "server" | "client" | "storage" | "network" | "unknown",
-      "target_id": "string (for edges)",
-      "source_id": "string (for edges)"
-    }
-  ]
-}
-
-RULES:
-1. Infer type based on label (Redis -> database).
-2. If user says "connect A to B", generate the edge.
-3. If user refers to "it", infer context from recent nodes.
-4. Ignore filler words.
-```
+**System Prompt** Can be found in the file: server/src/main/resources/prompts/sketch-protocol.md
