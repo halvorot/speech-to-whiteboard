@@ -276,13 +276,11 @@ export async function layoutGraph(state: GraphState): Promise<LayoutResult> {
   const nodesArray = Array.from(state.nodes.values());
   const frames = nodesArray.filter((n) => n.type === 'frame');
 
-  // Separate positioned nodes (text/notes with position hints) from regular nodes
-  const positionedNodes = nodesArray.filter((n) =>
-    n.type !== 'frame' && n.position
+  // Track positioned nodes but include them in ELK layout so edges work
+  const positionedNodeIds = new Set(
+    nodesArray.filter((n) => n.type !== 'frame' && n.position).map((n) => n.id)
   );
-  const regularNodes = nodesArray.filter((n) =>
-    n.type !== 'frame' && !n.position
-  );
+  const regularNodes = nodesArray.filter((n) => n.type !== 'frame');
 
   // Build ELK nodes with hierarchy (frames contain their children)
   const elkFrames: ElkNode[] = frames.map((frame) => {
@@ -310,7 +308,7 @@ export async function layoutGraph(state: GraphState): Promise<LayoutResult> {
     };
   });
 
-  // Top-level nodes (not in any frame)
+  // Top-level nodes (not in any frame) - include ALL nodes so edges work
   const topLevelNodes: ElkNode[] = regularNodes
     .filter((n) => !n.parentId)
     .map((n) => {
@@ -376,6 +374,8 @@ export async function layoutGraph(state: GraphState): Promise<LayoutResult> {
         height: node.height || NODE_HEIGHT,
         parentId: original.parentId,
         color: original.color,
+        position: original.position,
+        relativeTo: original.relativeTo,
       });
 
       // Recursively extract children (they'll have positions relative to this node)
@@ -387,25 +387,19 @@ export async function layoutGraph(state: GraphState): Promise<LayoutResult> {
 
   extractNodes(layouted);
 
-  // Now position the positioned nodes based on their hints
-  for (const posNode of positionedNodes) {
-    const dims = getNodeDimensions(posNode.type);
-    const position = calculatePosition(posNode, nodes, dims);
+  // Override positions for positioned nodes based on their hints
+  for (const node of nodes) {
+    if (positionedNodeIds.has(node.id) && node.position) {
+      const original = state.nodes.get(node.id)!;
+      const dims = { width: node.width, height: node.height };
 
-    nodes.push({
-      id: posNode.id,
-      label: posNode.label,
-      description: posNode.description,
-      type: posNode.type,
-      x: position.x,
-      y: position.y,
-      width: dims.width,
-      height: dims.height,
-      parentId: posNode.parentId,
-      color: posNode.color,
-      position: posNode.position,
-      relativeTo: posNode.relativeTo,
-    });
+      // Calculate position based on hint, using only non-positioned nodes as reference
+      const referenceNodes = nodes.filter((n) => !positionedNodeIds.has(n.id));
+      const position = calculatePosition(original, referenceNodes, dims);
+
+      node.x = position.x;
+      node.y = position.y;
+    }
   }
 
   const edges: LayoutEdge[] = Array.from(state.edges.values()).map((edge) => ({
