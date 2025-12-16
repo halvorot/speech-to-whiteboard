@@ -7,6 +7,8 @@ import com.voiceboard.features.ai.GroqClient
 import com.voiceboard.features.ai.SketchResponse
 import com.voiceboard.features.auth.JwtVerifier
 import com.voiceboard.features.transcription.DeepgramClient
+import com.voiceboard.features.persistence.DatabaseConfig
+import com.voiceboard.features.persistence.WhiteboardRepository
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.serialization.kotlinx.json.*
@@ -36,13 +38,20 @@ fun Application.module() {
     // Load environment variables
     val supabaseUrl = System.getenv("SUPABASE_URL")
         ?: throw IllegalStateException("SUPABASE_URL not set")
+    val databaseUrl = System.getenv("DATABASE_URL")
+        ?: throw IllegalStateException("DATABASE_URL not set")
     val deepgramApiKey = System.getenv("DEEPGRAM_API_KEY")
         ?: throw IllegalStateException("DEEPGRAM_API_KEY not set")
     val groqApiKey = System.getenv("GROQ_API_KEY")
         ?: throw IllegalStateException("GROQ_API_KEY not set")
 
+    // Initialize database connection pool
+    DatabaseConfig.init(databaseUrl)
+    logger.info("Database connection pool initialized")
+
     val jwtVerifier = JwtVerifier(supabaseUrl)
     val graphStateManager = GraphStateManager()
+    val whiteboardRepository = WhiteboardRepository()
 
     val httpClient = HttpClient(CIO) {
         install(io.ktor.client.plugins.websocket.WebSockets)
@@ -111,6 +120,29 @@ fun Application.module() {
             send("Connected to VoiceBoard server")
 
             val graphState = graphStateManager.getOrCreate(userId)
+
+            // Load whiteboard from database
+            launch {
+                try {
+                    val savedState = whiteboardRepository.load(userId)
+                    if (savedState != null) {
+                        // Restore saved state
+                        graphState.nodes.putAll(savedState.nodes)
+                        graphState.edges.addAll(savedState.edges)
+                        graphState.canvasSnapshot = savedState.canvasSnapshot
+
+                        // Send snapshot to client to restore canvas
+                        if (savedState.canvasSnapshot != null) {
+                            send(Frame.Text(savedState.canvasSnapshot!!))
+                            logger.info("Sent saved whiteboard to client")
+                        }
+                    } else {
+                        logger.info("No saved whiteboard found for user $userId")
+                    }
+                } catch (e: Exception) {
+                    logger.error("Error loading whiteboard for user $userId", e)
+                }
+            }
 
             try {
                 for (frame in incoming) {
@@ -181,7 +213,7 @@ fun Application.module() {
                             val text = frame.readText()
                             logger.debug("Received text message: $text")
 
-                            // Try to parse as canvas sync message (new format with snapshot)
+                            // Parse canvas sync message
                             try {
                                 val canvasSync = Json.decodeFromString(CanvasSyncMessage.serializer(), text)
                                 if (canvasSync.type == "canvas_sync") {
@@ -189,20 +221,27 @@ fun Application.module() {
                                     graphState.canvasSnapshot = canvasSync.snapshot
                                     // Sync extracted graph
                                     graphState.syncFrom(canvasSync.graph)
-                                    logger.info("Canvas synced: ${canvasSync.graph.nodes.size} nodes, ${canvasSync.graph.edges.size} edges, snapshot stored")
+                                    logger.info("Canvas synced: ${canvasSync.graph.nodes.size} nodes, ${canvasSync.graph.edges.size} edges")
+
+                                    // Save to database
+                                    launch {
+                                        try {
+                                            val saved = whiteboardRepository.save(userId, graphState)
+                                            if (saved) {
+                                                logger.debug("Whiteboard saved for user $userId")
+                                            } else {
+                                                logger.error("Failed to save whiteboard for user $userId")
+                                                send(Frame.Text("ERROR: Failed to save whiteboard"))
+                                            }
+                                        } catch (e: Exception) {
+                                            logger.error("Error saving whiteboard for user $userId", e)
+                                            send(Frame.Text("ERROR: Failed to save whiteboard"))
+                                        }
+                                    }
                                 }
                             } catch (e: Exception) {
-                                // Try old graph_sync format for backwards compatibility
-                                try {
-                                    val syncMessage = Json.decodeFromString(GraphSyncMessage.serializer(), text)
-                                    if (syncMessage.type == "graph_sync") {
-                                        graphState.syncFrom(syncMessage)
-                                        logger.info("Graph state synced (legacy): ${syncMessage.nodes.size} nodes, ${syncMessage.edges.size} edges")
-                                    }
-                                } catch (e2: Exception) {
-                                    // Not a sync message, ignore
-                                    logger.debug("Text message is not a sync message: ${e.message}")
-                                }
+                                // Not a sync message, ignore
+                                logger.debug("Text message is not a canvas_sync message: ${e.message}")
                             }
                         }
                         else -> {}

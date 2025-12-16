@@ -123,15 +123,19 @@ Use this checklist to track progress. **Do not skip stages.**
         - [x] Manual edit persistence (position/size changes preserved across voice commands).
         - [x] Efficient rendering (update existing shapes instead of full re-render).
 
-- [ ] **Stage 4: The Architect (Review)**
+- [x] **Stage 4: Persistence**
+    - [x] Database schema: Single whiteboard per user (whiteboards table).
+    - [x] Save canvas to Supabase on changes (3-second debounced auto-save).
+    - [x] Load canvas on WebSocket connect.
+    - [x] Save status indicator (Saved/Saving/Unsaved/Error).
+    - [x] Manual save with Cmd/Ctrl+S keyboard shortcut.
+    - [x] Error handling with user feedback and auto-retry.
+    - [x] Removed legacy continuous sync (was 500ms, now only on-demand).
+
+- [ ] **Stage 5: The Architect (Review)**
     - [ ] UI: "Review Board" button.
     - [ ] Logic: Export tldraw snapshot -> Sanitize JSON -> Send to Claude Sonnet.
     - [ ] UI: Render Markdown response in side panel.
-
-- [ ] **Stage 5: Persistence**
-    - [ ] Save canvas to Supabase per user.
-    - [ ] Load canvas on WebSocket connect.
-    - [ ] Auto-save on canvas changes.
 
 - [ ] **Stage 6: Multi-Language Support**
     - [ ] Add language selection UI component.

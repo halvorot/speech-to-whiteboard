@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Tldraw, type Editor, getSnapshot } from 'tldraw';
+import { Tldraw, type Editor, getSnapshot, type TLRecord } from 'tldraw';
 import 'tldraw/tldraw.css';
 import { useAuth } from '../contexts/AuthContext';
 import { createGraphState, applyAction, layoutGraph, serializeGraphState, extractGraphFromSnapshot, type GraphState } from '../lib/graphLayout';
@@ -8,6 +8,7 @@ import { DiagramNodeUtil } from '../lib/DiagramNodeShape';
 import { StatusBanner } from '../components/StatusBanner';
 import { ToastContainer } from '../components/Toast';
 import { DiagramNodeToolbar } from '../components/DiagramNodeToolbar';
+import { SaveStatusIndicator } from '../components/SaveStatusIndicator';
 import type { SketchResponse } from '../types/sketch';
 import type { AppStatus, StatusMessage } from '../types/status';
 
@@ -23,12 +24,17 @@ export function Whiteboard() {
   const [isRecording, setIsRecording] = useState(false);
   const [appStatus, setAppStatus] = useState<AppStatus>('idle');
   const [toastMessages, setToastMessages] = useState<StatusMessage[]>([]);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved' | 'error'>('saved');
   const graphStateRef = useRef<GraphState>(createGraphState());
   const wsRef = useRef<WebSocket | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const hasConnectedRef = useRef(false);
   const statusTimeoutRef = useRef<number | null>(null);
+  const autoSaveTimerRef = useRef<number | null>(null);
+  const hasUnsavedChangesRef = useRef(false);
+  const pendingSnapshotRef = useRef<string | null>(null);
+  const hasLoadedInitialSnapshotRef = useRef(false);
 
   console.log('Whiteboard render - lastTranscript:', lastTranscript, 'sketchCommands:', sketchCommands);
 
@@ -65,6 +71,52 @@ export function Whiteboard() {
     }, 10000); // 10 second timeout
   }, [clearStatusTimeout, addToast]);
 
+  // Process pending snapshot when editor becomes ready
+  useEffect(() => {
+    if (!editor || !pendingSnapshotRef.current) return;
+
+    console.log('Editor ready, processing pending snapshot');
+    const snapshotData = pendingSnapshotRef.current;
+    pendingSnapshotRef.current = null;
+
+    try {
+      const parsed = JSON.parse(snapshotData);
+      const records = Object.values(parsed.store) as TLRecord[];
+
+      editor.store.mergeRemoteChanges(() => {
+        const allRecords = editor.store.allRecords();
+        const documentRecords = allRecords.filter(r =>
+          r.typeName === 'shape' ||
+          r.typeName === 'page' ||
+          r.typeName === 'binding' ||
+          r.typeName === 'asset'
+        );
+        editor.store.remove(documentRecords.map(r => r.id));
+        editor.store.put(records);
+      });
+
+      const extractedGraph = extractGraphFromSnapshot(parsed);
+      graphStateRef.current = extractedGraph;
+      console.log('Updated graphStateRef from pending:', extractedGraph.nodes.size, 'nodes,', extractedGraph.edges.size, 'edges');
+
+      setTimeout(() => {
+        editor.zoomToFit({ animation: { duration: 300 } });
+        if (!hasLoadedInitialSnapshotRef.current) {
+          addToast('success', 'Whiteboard loaded');
+          hasLoadedInitialSnapshotRef.current = true;
+        }
+        setSaveStatus('saved');
+      }, 100);
+
+      console.log('Pending snapshot loaded successfully');
+    } catch (e) {
+      console.error('Failed to load pending snapshot:', e);
+      setTimeout(() => {
+        addToast('error', 'Failed to load whiteboard');
+      }, 0);
+    }
+  }, [editor, addToast]);
+
   // WebSocket connection
   useEffect(() => {
     if (!session?.access_token) return;
@@ -76,20 +128,18 @@ export function Whiteboard() {
     ws.onopen = () => {
       console.log('WS: Connected');
       setIsWsConnected(true);
+      setAppStatus('idle'); // Reset any error status
       if (!hasConnectedRef.current) {
         hasConnectedRef.current = true;
         addToast('success', 'Connected to server');
       }
 
-      // Sync current graph state on connect/reconnect
-      const graphSync = serializeGraphState(graphStateRef.current);
-      ws.send(JSON.stringify(graphSync));
-      console.log('Sent initial graph sync:', graphSync.nodes.length, 'nodes,', graphSync.edges.length, 'edges');
+      // Don't sync on connect - server will send saved state if it exists
     };
 
     ws.onmessage = (event) => {
       const data = event.data;
-      console.log('WS: Message received:', data);
+      console.log('WS: Message received (type):', typeof data, data.substring ? data.substring(0, 100) : data);
 
       // Check for error messages from backend
       if (typeof data === 'string' && data.startsWith('ERROR:')) {
@@ -97,25 +147,89 @@ export function Whiteboard() {
         console.error('WS: Error from server:', errorMsg);
         clearStatusTimeout();
         setAppStatus('idle');
-        addToast('error', errorMsg);
+
+        // Check if it's a save error
+        if (errorMsg.includes('save') || errorMsg.includes('whiteboard')) {
+          setSaveStatus('error');
+          addToast('error', 'Failed to save - retrying...');
+        } else {
+          addToast('error', errorMsg);
+        }
         return;
       }
 
-      // Try to parse as JSON (sketch commands)
+      // Try to parse as JSON
       try {
-        const parsed = JSON.parse(data) as SketchResponse;
+        const parsed = JSON.parse(data);
+
+        // Check if it's a tldraw snapshot (initial load from server) - check this FIRST
+        if (parsed.store) {
+          console.log('WS: Received whiteboard snapshot');
+          if (!editor) {
+            console.log('Editor not ready yet, queueing snapshot');
+            pendingSnapshotRef.current = data;
+            return;
+          }
+
+          try {
+            // Load snapshot by replacing document records while keeping instance state
+            const records = Object.values(parsed.store) as TLRecord[];
+            editor.store.mergeRemoteChanges(() => {
+              // Remove only document records (shapes, pages, bindings, assets)
+              // Keep instance, camera, and other session state
+              const allRecords = editor.store.allRecords();
+              const documentRecords = allRecords.filter(r =>
+                r.typeName === 'shape' ||
+                r.typeName === 'page' ||
+                r.typeName === 'binding' ||
+                r.typeName === 'asset'
+              );
+              editor.store.remove(documentRecords.map(r => r.id));
+
+              // Add the new records from snapshot
+              editor.store.put(records);
+            });
+
+            // IMPORTANT: Extract graph state from snapshot and update ref
+            const extractedGraph = extractGraphFromSnapshot(parsed);
+            graphStateRef.current = extractedGraph;
+            console.log('Updated graphStateRef:', extractedGraph.nodes.size, 'nodes,', extractedGraph.edges.size, 'edges');
+
+            // Auto-zoom to fit content (same as after voice commands)
+            setTimeout(() => {
+              editor.zoomToFit({ animation: { duration: 300 } });
+            }, 100);
+
+            if (!hasLoadedInitialSnapshotRef.current) {
+              addToast('success', 'Whiteboard loaded');
+              hasLoadedInitialSnapshotRef.current = true;
+            }
+            setSaveStatus('saved');
+            console.log('Snapshot loaded successfully');
+          } catch (e) {
+            console.error('Failed to load snapshot:', e);
+            addToast('error', 'Failed to load whiteboard');
+          }
+          return;
+        }
+
+        // Check if it's sketch commands
         if (parsed.actions && Array.isArray(parsed.actions)) {
-          console.log('WS: Setting sketch commands:', parsed);
+          console.log('WS: Received sketch commands');
           setAppStatus('rendering');
           setSketchCommands(parsed);
           return;
         }
+
+        // Unknown JSON structure
+        console.warn('Unknown JSON message:', parsed);
+        return;
       } catch {
-        // Not JSON
+        // Not JSON, might be plain text
       }
 
-      // Plain text transcript
-      if (data && !data.startsWith('Connected to')) {
+      // Plain text transcript (only if not a JSON message)
+      if (data && typeof data === 'string' && !data.startsWith('Connected to') && !data.startsWith('{')) {
         console.log('WS: Setting transcript:', data);
         clearStatusTimeout(); // Got response, clear timeout
         setLastTranscript(data);
@@ -126,22 +240,32 @@ export function Whiteboard() {
 
     ws.onerror = (error) => {
       console.error('WS: Error:', error);
+      // Only handle errors for the current WebSocket instance
+      if (wsRef.current !== ws) {
+        console.log('Error from old WebSocket instance, ignoring');
+        return;
+      }
       setIsWsConnected(false);
-      // Only show error and update status if we've successfully connected before
+      // Only show error if we've successfully connected before
       if (hasConnectedRef.current) {
         setAppStatus('error');
         addToast('error', 'Connection error occurred');
       } else {
-        // During initial connection, keep status as idle
         console.log('WS: Error during initial connection, will retry...');
       }
     };
 
     ws.onclose = (event) => {
       console.log('WS: Closed:', event.code, event.reason);
+      // Only handle close for the current WebSocket instance
+      if (wsRef.current !== ws) {
+        console.log('Close from old WebSocket instance, ignoring');
+        return;
+      }
       setIsWsConnected(false);
       // Only show error if we've connected before and it's not a normal close
       if (hasConnectedRef.current && event.code !== 1000 && event.code !== 1001) {
+        setAppStatus('error');
         addToast('error', 'Connection lost');
       }
     };
@@ -153,7 +277,7 @@ export function Whiteboard() {
       ws.close();
       clearStatusTimeout();
     };
-  }, [session, addToast, clearStatusTimeout]);
+  }, [session, editor, addToast, clearStatusTimeout]);
 
   // Recording functions
   const startRecording = useCallback(async () => {
@@ -244,59 +368,88 @@ export function Whiteboard() {
     }
   };
 
-  // Sync canvas changes to backend (snapshot + extracted graph)
+  // Sync canvas to backend (called explicitly when saving)
+  const syncCanvas = useCallback(() => {
+    if (!editor || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      console.warn('Cannot sync: editor or WebSocket not ready');
+      return;
+    }
+
+    setSaveStatus('saving');
+
+    // Get full canvas snapshot (document only, not session)
+    const { document } = getSnapshot(editor.store);
+
+    // Extract graph state from snapshot for AI context
+    const graphState = extractGraphFromSnapshot(document);
+    graphStateRef.current = graphState;
+
+    // Send both snapshot and graph to backend
+    const syncMessage = {
+      type: 'canvas_sync',
+      snapshot: JSON.stringify(document),
+      graph: serializeGraphState(graphState),
+    };
+
+    wsRef.current.send(JSON.stringify(syncMessage));
+    console.log(
+      'Synced to backend:',
+      graphState.nodes.size,
+      'nodes,',
+      graphState.edges.size,
+      'edges'
+    );
+
+    // Assume save is successful (backend will send error if not)
+    setSaveStatus('saved');
+    hasUnsavedChangesRef.current = false;
+  }, [editor]);
+
+  // Auto-save with 3-second debounce after canvas changes
   useEffect(() => {
     if (!editor) return;
 
-    let debounceTimer: number | null = null;
-
     const handleChange = () => {
-      // Debounce: wait 500ms after last change before syncing
-      if (debounceTimer) {
-        clearTimeout(debounceTimer);
+      // Mark as having unsaved changes
+      hasUnsavedChangesRef.current = true;
+      setSaveStatus('unsaved');
+
+      // Clear any existing auto-save timer
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
       }
 
-      debounceTimer = window.setTimeout(() => {
-        // Get full canvas snapshot (document only, not session)
-        const { document } = getSnapshot(editor.store);
-
-        // Extract graph state from snapshot for AI context
-        const graphState = extractGraphFromSnapshot(document);
-        graphStateRef.current = graphState;
-
-        // Send both snapshot and graph to backend
-        if (wsRef.current?.readyState === WebSocket.OPEN) {
-          const syncMessage = {
-            type: 'canvas_sync',
-            snapshot: JSON.stringify(document), // Serialize snapshot to string
-            graph: serializeGraphState(graphState),
-          };
-
-          wsRef.current.send(JSON.stringify(syncMessage));
-          console.log(
-            'Synced to backend:',
-            graphState.nodes.size,
-            'nodes,',
-            graphState.edges.size,
-            'edges,',
-            'snapshot size:',
-            JSON.stringify(document).length,
-            'bytes'
-          );
-        }
-      }, 500);
+      // Set new auto-save timer (3 seconds)
+      autoSaveTimerRef.current = window.setTimeout(() => {
+        console.log('Auto-save triggered');
+        syncCanvas();
+      }, 3000);
     };
 
     // Listen to all document changes from user
     const dispose = editor.store.listen(handleChange, { scope: 'document', source: 'user' });
 
     return () => {
-      if (debounceTimer) {
-        clearTimeout(debounceTimer);
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
       }
       dispose();
     };
-  }, [editor]);
+  }, [editor, syncCanvas]);
+
+  // Manual save with Cmd/Ctrl+S
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        console.log('Manual save triggered');
+        syncCanvas();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [syncCanvas]);
 
   // Handle sketch commands and render
   useEffect(() => {
@@ -373,6 +526,7 @@ export function Whiteboard() {
           </div>
         </div>
         <div className="flex items-center gap-4">
+          <SaveStatusIndicator status={saveStatus} />
           <button
             onClick={handleRecordingToggle}
             disabled={!isWsConnected}

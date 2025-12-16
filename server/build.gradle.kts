@@ -43,6 +43,10 @@ dependencies {
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
 
+    // Database
+    implementation("org.postgresql:postgresql:42.7.4")
+    implementation("com.zaxxer:HikariCP:6.2.1")
+
     // Testing
     testImplementation("io.ktor:ktor-server-test-host:3.3.3")
     testImplementation("org.jetbrains.kotlin:kotlin-test:2.2.21")
