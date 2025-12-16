@@ -18,8 +18,30 @@ object DatabaseConfig {
             return // Already initialized
         }
 
+        val (baseUrl, query) = if (databaseUrl.contains("?")) {
+            databaseUrl.split("?", limit = 2)
+        } else {
+            listOf(databaseUrl, null)
+        }
+
+        val queryParams = query?.split('&')?.mapNotNull {
+            it.split('=', limit = 2).let { parts ->
+                if (parts.size == 2) parts[0] to parts[1] else null
+            }
+        }?.associate { it } ?: emptyMap()
+
+
+        val remainingParams = queryParams.filterKeys { it != "user" && it != "password" }
+        val cleanJdbcUrl = if (remainingParams.isNotEmpty()) {
+            baseUrl + "?" + remainingParams.map { "${it.key}=${it.value}" }.joinToString("&")
+        } else {
+            baseUrl
+        }
+
         val config = HikariConfig().apply {
-            jdbcUrl = databaseUrl
+            jdbcUrl = cleanJdbcUrl
+            username = queryParams["user"]
+            password = queryParams["password"]
             driverClassName = "org.postgresql.Driver"
             maximumPoolSize = 10
             minimumIdle = 2
