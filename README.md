@@ -8,7 +8,7 @@ Real-time collaborative whiteboard controlled by voice commands.
 
 See the full screen recording [here](docs/screen-recording-db-server-client-diagram.mov)
 
-## Current Status: Stage 3.5 Complete ✅
+## Current Status: Stage 4 Complete ✅
 
 ### Stage 1: The Skeleton ✅
 - ✅ Monorepo structure (client/server)
@@ -24,6 +24,7 @@ See the full screen recording [here](docs/screen-recording-db-server-client-diag
 - ✅ Sketch Protocol system prompt
 - ✅ Graph state management
 - ✅ Real-time command streaming
+- ✅ Conversation history tracking (last 5 commands for context)
 
 ### Stage 3: Visualizer ✅
 - ✅ ELK.js graph layout
@@ -31,6 +32,7 @@ See the full screen recording [here](docs/screen-recording-db-server-client-diag
 - ✅ Automatic arrow routing
 - ✅ Bidirectional edge support
 - ✅ Voice-controlled diagram manipulation
+- ✅ 16 semantic node types with color-coding
 
 ### Stage 3.5: Advanced Shape Types ✅
 - ✅ **Frames/Grouping:** Colored frames with parent-child relationships & hierarchical layout
@@ -40,15 +42,25 @@ See the full screen recording [here](docs/screen-recording-db-server-client-diag
 - ✅ **Smart Positioning:** Relative placement (above/below/left/right of nodes or entire drawing)
 - ✅ **Manual Edit Persistence:** Position/size changes preserved across voice commands
 - ✅ **Efficient Rendering:** Updates existing shapes instead of full re-render
+- ✅ **Inline Editing:** Double-click nodes to edit text, icons, and colors directly
+
+### Stage 4: Persistence ✅
+- ✅ **Database Schema:** PostgreSQL whiteboards table with RLS policies
+- ✅ **Auto-Save:** 3-second debounced save after canvas changes
+- ✅ **Manual Save:** Cmd/Ctrl+S keyboard shortcut
+- ✅ **Auto-Load:** Canvas restoration on WebSocket connect
+- ✅ **Save Status:** Visual indicator (Saved/Saving/Unsaved/Error)
+- ✅ **Error Handling:** User feedback with auto-retry logic
+- ✅ **Connection Pooling:** HikariCP for efficient database access
 
 ## Prerequisites
 
 - Node.js 18+
 - Java 21
-- Gradle 8.12 (via Homebrew)
-- Supabase account
-- Deepgram API account
-- Groq API account
+- Gradle 8.12 (via Homebrew or wrapper)
+- Supabase account (for auth + PostgreSQL database)
+- Deepgram API account (for speech-to-text)
+- Groq API account (for Llama 3.3 70B command interpretation)
 
 ## Quick Start (Local Development)
 
@@ -169,7 +181,9 @@ make check-env     # Verify environment setup
    - **Notes:** "Add a sticky note saying 'needs optimization'"
    - **Positioning:** "Add a note above the database" / "Put text below the entire diagram"
    - **Deletion:** "Remove the database box"
-4. **View** - Watch diagrams appear automatically with auto-layout & semantic colors
+4. **Edit** - Double-click any node to edit text, change icons, or adjust colors
+5. **Save** - Canvas auto-saves every 3 seconds (or use Cmd/Ctrl+S for manual save)
+6. **View** - Watch diagrams appear automatically with auto-layout & semantic colors
 
 ## Tech Stack
 
@@ -187,6 +201,8 @@ make check-env     # Verify environment setup
 - JWT verification
 - Deepgram (STT)
 - Groq (Llama 3.3 70B for command interpretation)
+- HikariCP (connection pooling)
+- PostgreSQL (via Supabase)
 
 ## Architecture
 
@@ -200,8 +216,7 @@ ELK.js Layout → tldraw Rendering
 
 ## Next Stages
 
-- **Stage 4:** Architect Review (Claude 3.5 Sonnet for diagram analysis)
-- **Stage 5:** Persistence (Save/load diagrams to Supabase)
+- **Stage 5:** The Architect (Claude 3.5 Sonnet for diagram review & analysis)
 - **Stage 6:** Multi-Language Support (Deepgram language config for STT)
 
 ## Project Structure
@@ -210,20 +225,25 @@ ELK.js Layout → tldraw Rendering
 .
 ├── client/                  # React frontend
 │   ├── src/
-│   │   ├── components/      # PushToTalk, TranscriptToast
+│   │   ├── components/      # PushToTalk, TranscriptToast, SaveStatusIndicator
 │   │   ├── contexts/        # AuthContext
 │   │   ├── hooks/           # useWebSocket
-│   │   ├── lib/             # Supabase client
+│   │   ├── lib/             # Supabase client, graph layout, tldraw shapes
 │   │   └── pages/           # Login, Whiteboard
 │   └── package.json
 │
-└── server/                  # Kotlin backend
-    ├── src/main/kotlin/com/voiceboard/
-    │   ├── features/
-    │   │   ├── auth/        # JwtVerifier
-    │   │   └── transcription/ # DeepgramClient
-    │   └── Application.kt
-    └── build.gradle.kts
+├── server/                  # Kotlin backend
+│   ├── src/main/kotlin/com/voiceboard/
+│   │   ├── features/
+│   │   │   ├── auth/        # JwtVerifier
+│   │   │   ├── transcription/ # DeepgramClient
+│   │   │   ├── ai/          # GroqClient (Llama 3.3 70B)
+│   │   │   └── persistence/ # WhiteboardRepository, DatabaseConfig
+│   │   └── Application.kt
+│   └── build.gradle.kts
+│
+└── supabase/
+    └── migrations/          # Database schema (whiteboards table)
 ```
 
 ## Troubleshooting
