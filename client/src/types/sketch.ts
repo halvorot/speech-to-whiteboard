@@ -38,6 +38,7 @@ export interface SketchAction {
   color?: string;
   position?: string;
   relative_to?: string;
+  opacity?: number;
 }
 
 export interface SketchResponse {
@@ -54,6 +55,7 @@ export interface SerializedGraphNode {
   color?: string;
   position?: string;
   relativeTo?: string;
+  opacity?: number;
 }
 
 export interface SerializedGraphEdge {

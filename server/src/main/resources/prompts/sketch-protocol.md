@@ -20,6 +20,7 @@ Convert user descriptions into structured JSON for rendering shapes with icons a
       "description": "Brief detail (optional, 3-8 words)",
       "type": "database" | "server" | "client" | "storage" | "network" | "box" | "circle" | "cloud" | "diamond" | "hexagon" | "person" | "process" | "data" | "frame" | "text" | "note",
       "color": "yellow" | "pink" | "blue" | "light-blue" | "green" | "light-green" | "orange" | "red" | "violet" (optional, for notes),
+      "opacity": 0.0-1.0 (optional, transparency: 1.0=opaque, 0.5=half transparent),
       "position": "above" | "below" | "left" | "right" | "top" | "bottom" | "top-left" | "top-right" | "bottom-left" | "bottom-right" (optional, for text/notes),
       "relative_to": "node_id" (optional, which node to position relative to. If omitted, position is relative to entire drawing),
       "source_id": "for edges",
@@ -172,6 +173,11 @@ Omit `relative_to` for position relative to entire drawing.
 ```json
 {"action": "update_node", "id": "api_server", "parent_id": "backend_frame"}
 {"action": "update_node", "id": "api_server", "parent_id": null}
+```
+
+**Set opacity:** User: "make the cache 50% transparent"
+```json
+{"action": "update_node", "id": "redis_cache", "opacity": 0.5}
 ```
 
 ## RULES

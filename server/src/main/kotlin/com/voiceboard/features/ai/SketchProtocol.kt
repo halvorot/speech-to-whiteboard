@@ -16,7 +16,8 @@ data class SketchAction(
     @SerialName("parent_id") val parentId: String? = null,
     val color: String? = null,
     val position: String? = null,
-    @SerialName("relative_to") val relativeTo: String? = null
+    @SerialName("relative_to") val relativeTo: String? = null,
+    val opacity: Double? = null
 )
 
 @Serializable
@@ -71,7 +72,8 @@ data class SerializedGraphNode(
     val parentId: String? = null,
     val color: String? = null,
     val position: String? = null,
-    val relativeTo: String? = null
+    val relativeTo: String? = null,
+    val opacity: Double? = null
 )
 
 @Serializable

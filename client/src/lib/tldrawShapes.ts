@@ -228,6 +228,7 @@ export function renderLayout(editor: Editor, nodes: LayoutNode[], edges: LayoutE
           type: 'frame',
           x: frame.x,
           y: frame.y,
+          opacity: frame.opacity ?? 1,
           props: {
             w: frame.width,
             h: frame.height,
@@ -241,6 +242,7 @@ export function renderLayout(editor: Editor, nodes: LayoutNode[], edges: LayoutE
           id: shapeId,
           x: frame.x,
           y: frame.y,
+          opacity: frame.opacity ?? 1,
           props: {
             w: frame.width,
             h: frame.height,
@@ -273,6 +275,7 @@ export function renderLayout(editor: Editor, nodes: LayoutNode[], edges: LayoutE
             type: 'text',
             x: node.x,
             y: node.y,
+            opacity: node.opacity ?? 1,
             props: {
               richText: toRichText(text),
               w: node.width,
@@ -286,6 +289,7 @@ export function renderLayout(editor: Editor, nodes: LayoutNode[], edges: LayoutE
             id: shapeId,
             x: node.x,
             y: node.y,
+            opacity: node.opacity ?? 1,
             props: {
               richText: toRichText(text),
               w: node.width,
@@ -309,6 +313,7 @@ export function renderLayout(editor: Editor, nodes: LayoutNode[], edges: LayoutE
             type: 'note',
             x: node.x,
             y: node.y,
+            opacity: node.opacity ?? 1,
             props: {
               richText: toRichText(text),
               color: noteColor,
@@ -322,6 +327,7 @@ export function renderLayout(editor: Editor, nodes: LayoutNode[], edges: LayoutE
             id: shapeId,
             x: node.x,
             y: node.y,
+            opacity: node.opacity ?? 1,
             props: {
               richText: toRichText(text),
               color: noteColor,
@@ -341,6 +347,7 @@ export function renderLayout(editor: Editor, nodes: LayoutNode[], edges: LayoutE
             type: 'diagram-node',
             x: node.x,
             y: node.y,
+            opacity: node.opacity ?? 1,
             props: {
               w: node.width,
               h: node.height,
@@ -358,6 +365,7 @@ export function renderLayout(editor: Editor, nodes: LayoutNode[], edges: LayoutE
             id: shapeId,
             x: node.x,
             y: node.y,
+            opacity: node.opacity ?? 1,
             props: {
               w: node.width,
               h: node.height,

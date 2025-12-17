@@ -10,7 +10,8 @@ data class GraphNode(
     val parentId: String? = null,
     val color: String? = null,
     val position: String? = null,
-    val relativeTo: String? = null
+    val relativeTo: String? = null,
+    val opacity: Double? = null
 )
 
 data class GraphEdge(
@@ -57,7 +58,8 @@ data class GraphState(
                 parentId = node.parentId,
                 color = node.color,
                 position = node.position,
-                relativeTo = node.relativeTo
+                relativeTo = node.relativeTo,
+                opacity = node.opacity
             )
         }
 
@@ -121,7 +123,8 @@ data class GraphState(
                         parentId = action.parentId,
                         color = action.color,
                         position = action.position,
-                        relativeTo = action.relativeTo
+                        relativeTo = action.relativeTo,
+                        opacity = action.opacity
                     )
                     true
                 } else false
@@ -137,7 +140,8 @@ data class GraphState(
                         parentId = action.parentId ?: existing.parentId,
                         color = action.color ?: existing.color,
                         position = action.position ?: existing.position,
-                        relativeTo = action.relativeTo ?: existing.relativeTo
+                        relativeTo = action.relativeTo ?: existing.relativeTo,
+                        opacity = action.opacity ?: existing.opacity
                     )
                     true
                 } else false

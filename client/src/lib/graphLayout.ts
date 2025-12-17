@@ -13,6 +13,7 @@ export interface GraphNode {
   color?: string;
   position?: string;
   relativeTo?: string;
+  opacity?: number;
 }
 
 export interface GraphEdge {
@@ -40,6 +41,7 @@ export interface LayoutNode {
   color?: string;
   position?: string;
   relativeTo?: string;
+  opacity?: number;
 }
 
 export interface LayoutEdge {
@@ -122,6 +124,7 @@ export function extractGraphFromSnapshot(snapshot: any): GraphState {
         type: (props?.nodeType as NodeType) || 'box',
         parentId,
         color: props?.color as string | undefined,
+        opacity: (shape as { opacity?: number }).opacity,
       });
     }
   }
@@ -196,6 +199,7 @@ export function applyAction(state: GraphState, action: SketchAction): boolean {
           color: action.color,
           position: action.position,
           relativeTo: action.relative_to,
+          opacity: action.opacity,
         });
         return true;
       }
@@ -213,6 +217,7 @@ export function applyAction(state: GraphState, action: SketchAction): boolean {
           color: action.color !== undefined ? action.color : existing.color,
           position: action.position !== undefined ? action.position : existing.position,
           relativeTo: action.relative_to !== undefined ? action.relative_to : existing.relativeTo,
+          opacity: action.opacity !== undefined ? action.opacity : existing.opacity,
         });
         return true;
       }
@@ -376,6 +381,7 @@ export async function layoutGraph(state: GraphState): Promise<LayoutResult> {
         color: original.color,
         position: original.position,
         relativeTo: original.relativeTo,
+        opacity: original.opacity,
       });
 
       // Recursively extract children (they'll have positions relative to this node)
@@ -578,6 +584,7 @@ export function serializeGraphState(state: GraphState): GraphSyncMessage {
       color: node.color,
       position: node.position,
       relativeTo: node.relativeTo,
+      opacity: node.opacity,
     })),
     edges: Array.from(state.edges.values()).map((edge) => ({
       id: edge.id,
