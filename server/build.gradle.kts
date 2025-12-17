@@ -49,7 +49,7 @@ dependencies {
 
     // Testing
     testImplementation("io.ktor:ktor-server-test-host:3.3.3")
-    testImplementation("org.jetbrains.kotlin:kotlin-test:2.2.21")
+    testImplementation("org.jetbrains.kotlin:kotlin-test:2.3.0")
 }
 
 tasks.test {
