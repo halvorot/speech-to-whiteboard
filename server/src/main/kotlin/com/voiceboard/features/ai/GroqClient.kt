@@ -92,7 +92,8 @@ class GroqClient(
                 stream = false
             )
 
-            logger.info("Sending request to Groq: $userPrompt")
+            logger.info("Sending user prompt to Groq: $userPrompt")
+            logger.info("Complete Groq request: $request")
 
             val response: HttpResponse = client.post(baseUrl) {
                 header("Authorization", "Bearer $apiKey")
