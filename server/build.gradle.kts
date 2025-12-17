@@ -45,7 +45,7 @@ dependencies {
 
     // Database
     implementation("org.postgresql:postgresql:42.7.4")
-    implementation("com.zaxxer:HikariCP:6.2.1")
+    implementation("com.zaxxer:HikariCP:7.0.2")
 
     // Testing
     testImplementation("io.ktor:ktor-server-test-host:3.3.3")
