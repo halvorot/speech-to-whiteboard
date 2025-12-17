@@ -68,7 +68,7 @@ export function Whiteboard() {
       console.log('Status timeout - no response received');
       setAppStatus('idle');
       addToast('error', 'No response received - try speaking louder or check connection');
-    }, 10000); // 10 second timeout
+    }, 20000); // 20 second timeout (Deepgram can be slow, 10-15s normal)
   }, [clearStatusTimeout, addToast]);
 
   // Process pending snapshot when editor becomes ready
