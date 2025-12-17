@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 import {
   BaseBoxShapeUtil,
   HTMLContainer,
@@ -137,24 +136,34 @@ export class DiagramNodeUtil extends BaseBoxShapeUtil<DiagramNodeShape> {
 
     const isEditing = this.editor.getEditingShapeId() === shape.id;
 
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     const [editingLabel, setEditingLabel] = useState(label);
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     const [editingDescription, setEditingDescription] = useState(description);
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     const labelInputRef = useRef<HTMLInputElement>(null);
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     const descriptionInputRef = useRef<HTMLInputElement>(null);
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const wasEditingRef = useRef(false);
 
-    // Focus label input when entering edit mode
+    // Focus label input and sync state when entering edit mode
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     useEffect(() => {
-      if (isEditing && labelInputRef.current) {
-        labelInputRef.current.focus();
-        labelInputRef.current.select();
+      const wasEditing = wasEditingRef.current;
+      wasEditingRef.current = isEditing;
+
+      // Sync state when entering edit mode (including first render if already editing)
+      if (isEditing && !wasEditing) {
+        setEditingLabel(label);
+        setEditingDescription(description);
+
+        if (labelInputRef.current) {
+          labelInputRef.current.focus();
+          labelInputRef.current.select();
+        }
       }
-    }, [isEditing]);
-
-    // Sync local state with props
-    useEffect(() => {
-      setEditingLabel(label);
-      setEditingDescription(description);
-    }, [label, description]);
+    }, [isEditing, label, description]);
 
     const saveChanges = () => {
       this.editor.updateShape({
