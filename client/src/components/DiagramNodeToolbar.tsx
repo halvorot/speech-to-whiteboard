@@ -189,14 +189,6 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
           ))}
         </div>
       </div>
-
-      {/* Instructions */}
-      <div className="flex flex-col gap-1 border-l border-gray-200 pl-4 text-xs text-gray-500">
-        <div>
-          <strong>Double-click</strong> to edit text
-        </div>
-        <div>Change icon and color using controls</div>
-      </div>
     </div>
   );
 };
