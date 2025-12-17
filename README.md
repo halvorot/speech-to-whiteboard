@@ -1,6 +1,6 @@
 # VoiceBoard - Speech-to-Whiteboard Application
 
-Real-time collaborative whiteboard controlled by voice commands.
+Real-time whiteboard controlled by voice commands.
 
 **🚀 Live Demo:** [voiceboard.halvorteigen.no](https://voiceboard.halvorteigen.no)
 
