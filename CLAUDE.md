@@ -132,6 +132,16 @@ Use this checklist to track progress. **Do not skip stages.**
     - [x] Error handling with user feedback and auto-retry.
     - [x] Removed legacy continuous sync (was 500ms, now only on-demand).
 
+- [x] **Stage 4.5: Mobile-Friendly UI**
+    - [x] Responsive header (minimal on mobile: logo + record + menu)
+    - [x] Mobile menu drawer (transcript, save status, sign out)
+    - [x] Bottom sheet for node toolbar on mobile
+    - [x] Touch-optimized controls (44px minimum targets)
+    - [x] Responsive overlays (StatusBanner, Toast positioning)
+    - [x] CSS animations (slide-up, slide-down, slide-in-right)
+    - [x] Touch-action rules (prevent double-tap zoom, enable pinch-zoom)
+    - [x] Mobile breakpoint: 768px (md)
+
 - [ ] **Stage 5: The Architect (Review)**
     - [ ] UI: "Review Board" button.
     - [ ] Logic: Export tldraw snapshot -> Sanitize JSON -> Send to Claude Sonnet.
@@ -155,6 +165,40 @@ Use this checklist to track progress. **Do not skip stages.**
 * **Strict Mode:** No `any`. Define Interfaces for all WebSocket messages.
 * **Components:** Functional components only.
 * **tldraw:** Interact with the store via `editor.store.mergeRemoteChanges` or `editor.createShapes` to ensure undo/redo history works.
+
+### Mobile-First Development
+**IMPORTANT:** All new features and UI changes must be mobile-friendly by default.
+
+* **Responsive Design:**
+  - Use Tailwind's mobile-first approach (default styles = mobile, `md:` prefix = desktop ≥768px)
+  - Test all changes at mobile (375px), tablet (768px), and desktop (1024px+) widths
+  - Hide/show elements appropriately: `hidden md:block`, `md:hidden`
+
+* **Touch Optimization:**
+  - Minimum touch target: 44x44px (iOS/Android guideline)
+  - Use `touch-action: manipulation` on interactive elements to prevent double-tap zoom
+  - Enable pinch-zoom and pan on canvas: `touch-action: pinch-zoom pan-x pan-y`
+  - Consider swipe gestures for mobile-specific interactions
+
+* **Mobile UI Patterns:**
+  - Desktop toolbars → Mobile bottom sheets (slide up from bottom)
+  - Desktop side panels → Mobile drawers (slide in from side)
+  - Desktop multi-column layouts → Mobile single-column stacks
+  - Large desktop controls → Mobile menu/drawer access
+
+* **Component Guidelines:**
+  - New buttons: Ensure `min-w-[44px] min-h-[44px]` on mobile
+  - New overlays: Position to avoid obscuring critical controls (consider bottom sheet height)
+  - New forms: Full-width inputs on mobile (`w-full md:w-auto`)
+  - New text: Responsive sizing (`text-sm md:text-base`)
+
+* **Testing Checklist for New Features:**
+  1. Chrome DevTools responsive mode (Cmd+Shift+M)
+  2. Test iPhone SE (375px), iPad (768px)
+  3. Verify touch targets ≥44px
+  4. Check no double-tap zoom on buttons
+  5. Ensure desktop experience unchanged
+  6. Test landscape orientation
 
 ## 7. The "Sketch Protocol" & System Prompt
 **Model:** Llama 3 (via Groq)

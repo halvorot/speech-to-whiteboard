@@ -3,6 +3,8 @@
 body {
   margin: 0;
   min-height: 100vh;
+  /* Support for iPhone notch and Safari toolbar */
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 /* Toast slide-in animation */
@@ -19,4 +21,108 @@ body {
 
 .animate-slide-in {
   animation: slide-in 0.3s ease-out;
+}
+
+/* Mobile bottom sheet animations */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-down {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+.animate-slide-down {
+  animation: slide-down 0.3s ease-out;
+}
+
+/* Mobile menu animations */
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+/* Touch optimization */
+button, select {
+  touch-action: manipulation;
+}
+
+/* Allow all gestures on tldraw canvas except double-tap zoom */
+/* This preserves double-click to edit functionality */
+.tldraw {
+  touch-action: manipulation;
+}
+
+/* Mobile-only safe area handling */
+.mobile-safe-top {
+  padding-top: max(12px, env(safe-area-inset-top));
+}
+
+.mobile-safe-bottom {
+  padding-bottom: max(80px, env(safe-area-inset-bottom));
+}
+
+/* Status banner mobile positioning */
+.status-banner-mobile {
+  top: calc(64px + env(safe-area-inset-top, 0px));
+}
+
+/* Toast positioning - top-right on mobile, bottom-right on desktop */
+.toast-container-mobile {
+  top: calc(72px + env(safe-area-inset-top, 0px));
+  right: 1rem;
+}
+
+@media (min-width: 768px) {
+  .mobile-safe-top {
+    padding-top: 1rem; /* md:p-4 = 16px */
+  }
+
+  .mobile-safe-bottom {
+    padding-bottom: 0;
+  }
+
+  .status-banner-mobile {
+    top: 80px; /* md:top-20 */
+  }
+
+  .toast-container-mobile {
+    top: auto;
+    bottom: 1rem;
+  }
 }
