@@ -36,6 +36,8 @@ export function Whiteboard() {
   const pendingSnapshotRef = useRef<string | null>(null);
   const hasLoadedInitialSnapshotRef = useRef(false);
 
+  const tldrawLicenseKey = import.meta.env.VITE_TLDRAW_LICENSE_KEY || undefined;
+
   console.log('Whiteboard render - lastTranscript:', lastTranscript, 'sketchCommands:', sketchCommands);
 
   // Toast management
@@ -557,7 +559,7 @@ export function Whiteboard() {
         <Tldraw
           onMount={setEditor}
           shapeUtils={customShapeUtils}
-          {...(import.meta.env.VITE_TLDRAW_LICENSE_KEY && { licenseKey: import.meta.env.VITE_TLDRAW_LICENSE_KEY })}
+          licenseKey={tldrawLicenseKey}
         />
         {/* Diagram node toolbar - shown when a node is selected */}
         {editor && <DiagramNodeToolbar editor={editor} />}
