@@ -65,100 +65,104 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
   const [selectedNodeId, setSelectedNodeId] = useState<TLShapeId | null>(null);
   const [showMobileSheet, setShowMobileSheet] = useState(false);
   const [, forceUpdate] = useState({});
-  const selectionTimeoutRef = useRef<number | null>(null);
-  const wasDraggedRef = useRef(false);
+  const pointerDownPosRef = useRef<{ x: number; y: number } | null>(null);
+  const wasInteractionRef = useRef(false);
+
+  // Track pointer events to detect drags
+  useEffect(() => {
+    const container = editor.getContainer();
+
+    const handlePointerDown = (e: PointerEvent) => {
+      // Record pointer down position
+      pointerDownPosRef.current = { x: e.clientX, y: e.clientY };
+      wasInteractionRef.current = false;
+      // Hide bottom sheet immediately on pointer down
+      setShowMobileSheet(false);
+    };
+
+    const handlePointerMove = (e: PointerEvent) => {
+      // If pointer moved significantly, mark as interaction (drag)
+      if (pointerDownPosRef.current) {
+        const dx = Math.abs(e.clientX - pointerDownPosRef.current.x);
+        const dy = Math.abs(e.clientY - pointerDownPosRef.current.y);
+        if (dx > 5 || dy > 5) {
+          wasInteractionRef.current = true;
+        }
+      }
+    };
+
+    const handlePointerUp = () => {
+      // On pointer up, show bottom sheet only if it was a clean tap
+      if (!wasInteractionRef.current) {
+        // Small delay to allow selection to update
+        setTimeout(() => {
+          const selectedShapes = editor.getSelectedShapes();
+          const diagramNodes = selectedShapes.filter((s) => s.type === 'diagram-node') as DiagramNodeShape[];
+
+          // Show bottom sheet if exactly one diagram node is selected and not editing
+          if (diagramNodes.length === 1 && !editor.getEditingShapeId()) {
+            setShowMobileSheet(true);
+          }
+        }, 100);
+      }
+
+      // Clear pointer tracking
+      setTimeout(() => {
+        pointerDownPosRef.current = null;
+        wasInteractionRef.current = false;
+      }, 150);
+    };
+
+    container.addEventListener('pointerdown', handlePointerDown);
+    container.addEventListener('pointermove', handlePointerMove);
+    container.addEventListener('pointerup', handlePointerUp);
+    container.addEventListener('pointercancel', handlePointerUp);
+
+    return () => {
+      container.removeEventListener('pointerdown', handlePointerDown);
+      container.removeEventListener('pointermove', handlePointerMove);
+      container.removeEventListener('pointerup', handlePointerUp);
+      container.removeEventListener('pointercancel', handlePointerUp);
+    };
+  }, [editor]);
 
   // Subscribe to selection changes and shape updates
   useEffect(() => {
-    let initialPosition: { x: number; y: number } | null = null;
-
     const updateSelection = () => {
       const selectedShapes = editor.getSelectedShapes();
       const diagramNodes = selectedShapes.filter((s) => s.type === 'diagram-node') as DiagramNodeShape[];
 
-      // Clear any pending timeout
-      if (selectionTimeoutRef.current) {
-        clearTimeout(selectionTimeoutRef.current);
-        selectionTimeoutRef.current = null;
-      }
-
-      // Only show toolbar if exactly one diagram node is selected
+      // Update selected node ID
       if (diagramNodes.length === 1) {
-        const nodeId = diagramNodes[0].id;
-        const node = diagramNodes[0];
-        setSelectedNodeId(nodeId);
-
-        // Store initial position and reset drag flag for new selection
-        initialPosition = { x: node.x, y: node.y };
-        wasDraggedRef.current = false;
-
-        // On mobile, delay showing the bottom sheet to avoid showing during drag/edit
-        selectionTimeoutRef.current = window.setTimeout(() => {
-          // Don't show if shape was dragged or if user is editing text
-          const isEditing = editor.getEditingShapeId() === nodeId;
-          if (!wasDraggedRef.current && !isEditing) {
-            setShowMobileSheet(true);
-          }
-        }, 200); // 200ms delay
+        setSelectedNodeId(diagramNodes[0].id);
       } else {
         setSelectedNodeId(null);
         setShowMobileSheet(false);
-        initialPosition = null;
-        wasDraggedRef.current = false;
       }
     };
 
-    const checkForDragOrEdit = () => {
-      // Check if the selected shape moved (was dragged)
-      if (selectedNodeId && initialPosition) {
-        const shape = editor.getShape(selectedNodeId) as DiagramNodeShape | undefined;
-        if (shape) {
-          const moved = Math.abs(shape.x - initialPosition.x) > 2 ||
-                       Math.abs(shape.y - initialPosition.y) > 2;
-          if (moved) {
-            // Mark as dragged - this prevents bottom sheet from showing
-            wasDraggedRef.current = true;
-            // Cancel pending timeout
-            if (selectionTimeoutRef.current) {
-              clearTimeout(selectionTimeoutRef.current);
-              selectionTimeoutRef.current = null;
-            }
-            // Hide bottom sheet if it's showing
-            setShowMobileSheet(false);
-          }
-        }
-      }
-
+    const checkForEdit = () => {
       // Check if user is editing text - hide bottom sheet if so
       if (selectedNodeId && editor.getEditingShapeId() === selectedNodeId) {
         setShowMobileSheet(false);
-        // Cancel pending timeout
-        if (selectionTimeoutRef.current) {
-          clearTimeout(selectionTimeoutRef.current);
-          selectionTimeoutRef.current = null;
-        }
       }
-
-      // Also force re-render when shapes change (this updates picker displays)
+      // Force re-render when shapes change (updates picker displays)
       forceUpdate({});
     };
 
     // Initial update
     updateSelection();
 
-    // Listen to both selection changes (session) and shape updates (document)
+    // Listen to selection changes
     const disposeSession = editor.store.listen(() => {
       updateSelection();
     }, { scope: 'session' });
 
     const disposeDocument = editor.store.listen(() => {
-      checkForDragOrEdit();
+      checkForEdit();
     }, { scope: 'document' });
 
     return () => {
-      if (selectionTimeoutRef.current) {
-        clearTimeout(selectionTimeoutRef.current);
-      }
       disposeSession();
       disposeDocument();
     };
