@@ -586,7 +586,7 @@ export function Whiteboard() {
           </button>
         </div>
       </header>
-      <div className="flex-1 relative">
+      <div className="flex-1 relative" style={{ paddingBottom: 'max(80px, env(safe-area-inset-bottom))' }}>
         <Tldraw
           onMount={setEditor}
           shapeUtils={customShapeUtils}
