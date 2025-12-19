@@ -69,7 +69,7 @@ export const MobileBottomSheet = ({
     <>
       {/* Backdrop - visible only on mobile */}
       <div
-        className={`md:hidden fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ${
+        className={`md:hidden fixed inset-0 bg-black/50 z-[999] transition-opacity duration-300 ${
           isClosing ? 'opacity-0' : 'opacity-100'
         }`}
         onClick={handleClose}
@@ -78,7 +78,7 @@ export const MobileBottomSheet = ({
       {/* Bottom sheet - visible only on mobile */}
       <div
         ref={sheetRef}
-        className={`md:hidden fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50 max-h-[80vh] overflow-y-auto ${
+        className={`md:hidden fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-[1000] max-h-[80vh] overflow-y-auto ${
           isClosing ? 'animate-slide-down' : 'animate-slide-up'
         }`}
         onTouchStart={handleTouchStart}

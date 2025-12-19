@@ -591,6 +591,9 @@ export function Whiteboard() {
           onMount={setEditor}
           shapeUtils={customShapeUtils}
           licenseKey={tldrawLicenseKey}
+          components={{
+            ContextMenu: null, // Hide context menu on mobile to avoid conflict with bottom sheet
+          }}
         />
         {/* Diagram node toolbar - shown when a node is selected */}
         {editor && <DiagramNodeToolbar editor={editor} />}

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { type Editor, type TLDefaultColorStyle } from 'tldraw';
+import { useEffect, useState, useRef } from 'react';
+import { type Editor, type TLDefaultColorStyle, type TLShapeId } from 'tldraw';
 import type { NodeType } from '../types/sketch';
 import type { DiagramNodeShape } from '../lib/DiagramNodeShape';
 import { MobileBottomSheet } from './MobileBottomSheet';
@@ -62,36 +62,91 @@ interface DiagramNodeToolbarProps {
 }
 
 export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
-  const [selectedNode, setSelectedNode] = useState<DiagramNodeShape | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<TLShapeId | null>(null);
+  const [showMobileSheet, setShowMobileSheet] = useState(false);
+  const [, forceUpdate] = useState({});
+  const selectionTimeoutRef = useRef<number | null>(null);
 
-  // Subscribe to selection changes
+  // Subscribe to selection changes and shape updates
   useEffect(() => {
+    let lastShapePosition: { x: number; y: number } | null = null;
+
     const updateSelection = () => {
       const selectedShapes = editor.getSelectedShapes();
       const diagramNodes = selectedShapes.filter((s) => s.type === 'diagram-node') as DiagramNodeShape[];
 
+      // Clear any pending timeout
+      if (selectionTimeoutRef.current) {
+        clearTimeout(selectionTimeoutRef.current);
+        selectionTimeoutRef.current = null;
+      }
+
       // Only show toolbar if exactly one diagram node is selected
       if (diagramNodes.length === 1) {
-        setSelectedNode(diagramNodes[0]);
+        const nodeId = diagramNodes[0].id;
+        const node = diagramNodes[0];
+        setSelectedNodeId(nodeId);
+
+        // Store initial position
+        lastShapePosition = { x: node.x, y: node.y };
+
+        // On mobile, delay showing the bottom sheet to avoid showing during drag
+        selectionTimeoutRef.current = window.setTimeout(() => {
+          setShowMobileSheet(true);
+        }, 200); // 200ms delay
       } else {
-        setSelectedNode(null);
+        setSelectedNodeId(null);
+        setShowMobileSheet(false);
+        lastShapePosition = null;
       }
+    };
+
+    const checkForDrag = () => {
+      // If we have a pending timeout and the selected shape moved, cancel it
+      if (selectionTimeoutRef.current && selectedNodeId && lastShapePosition) {
+        const shape = editor.getShape(selectedNodeId) as DiagramNodeShape | undefined;
+        if (shape) {
+          const moved = Math.abs(shape.x - lastShapePosition.x) > 2 ||
+                       Math.abs(shape.y - lastShapePosition.y) > 2;
+          if (moved) {
+            // Shape was dragged, cancel the timeout
+            clearTimeout(selectionTimeoutRef.current);
+            selectionTimeoutRef.current = null;
+          }
+        }
+      }
+      // Also force re-render when shapes change (this updates picker displays)
+      forceUpdate({});
     };
 
     // Initial update
     updateSelection();
 
-    // Listen to selection changes
-    const dispose = editor.store.listen(() => {
+    // Listen to both selection changes (session) and shape updates (document)
+    const disposeSession = editor.store.listen(() => {
       updateSelection();
     }, { scope: 'session' });
 
+    const disposeDocument = editor.store.listen(() => {
+      checkForDrag();
+    }, { scope: 'document' });
+
     return () => {
-      dispose();
+      if (selectionTimeoutRef.current) {
+        clearTimeout(selectionTimeoutRef.current);
+      }
+      disposeSession();
+      disposeDocument();
     };
-  }, [editor]);
+  }, [editor, selectedNodeId]);
 
   // Don't render if no node selected
+  if (!selectedNodeId) {
+    return null;
+  }
+
+  // Get current shape from editor (this ensures we always have latest props)
+  const selectedNode = editor.getShape(selectedNodeId) as DiagramNodeShape | undefined;
   if (!selectedNode) {
     return null;
   }
@@ -200,8 +255,11 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
 
       {/* Mobile bottom sheet - visible only on mobile */}
       <MobileBottomSheet
-        isOpen={!!selectedNode}
-        onClose={() => editor.setSelectedShapes([])}
+        isOpen={showMobileSheet}
+        onClose={() => {
+          setShowMobileSheet(false);
+          editor.setSelectedShapes([]);
+        }}
       >
         <div className="p-4 space-y-4">
           {/* Type selector - full width on mobile */}
