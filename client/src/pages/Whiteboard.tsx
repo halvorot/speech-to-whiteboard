@@ -557,6 +557,7 @@ export function Whiteboard() {
         <Tldraw
           onMount={setEditor}
           shapeUtils={customShapeUtils}
+          {...(import.meta.env.VITE_TLDRAW_LICENSE_KEY && { licenseKey: import.meta.env.VITE_TLDRAW_LICENSE_KEY })}
         />
         {/* Diagram node toolbar - shown when a node is selected */}
         {editor && <DiagramNodeToolbar editor={editor} />}
