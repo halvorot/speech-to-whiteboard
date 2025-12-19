@@ -218,7 +218,7 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
                 <button
                   key={c}
                   onClick={() => handleColorChange(c)}
-                  className={`w-10 h-10 rounded-lg border-2 ${
+                  className={`w-11 h-11 rounded-lg border-2 ${
                     color === c ? 'border-blue-600 ring-2 ring-blue-300' : 'border-gray-300'
                   } transition-all active:scale-95`}
                   style={{ backgroundColor: COLOR_HEX_MAP[c] }}
