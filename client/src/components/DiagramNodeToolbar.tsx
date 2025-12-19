@@ -66,10 +66,11 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
   const [showMobileSheet, setShowMobileSheet] = useState(false);
   const [, forceUpdate] = useState({});
   const selectionTimeoutRef = useRef<number | null>(null);
+  const wasDraggedRef = useRef(false);
 
   // Subscribe to selection changes and shape updates
   useEffect(() => {
-    let lastShapePosition: { x: number; y: number } | null = null;
+    let initialPosition: { x: number; y: number } | null = null;
 
     const updateSelection = () => {
       const selectedShapes = editor.getSelectedShapes();
@@ -87,34 +88,57 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
         const node = diagramNodes[0];
         setSelectedNodeId(nodeId);
 
-        // Store initial position
-        lastShapePosition = { x: node.x, y: node.y };
+        // Store initial position and reset drag flag for new selection
+        initialPosition = { x: node.x, y: node.y };
+        wasDraggedRef.current = false;
 
-        // On mobile, delay showing the bottom sheet to avoid showing during drag
+        // On mobile, delay showing the bottom sheet to avoid showing during drag/edit
         selectionTimeoutRef.current = window.setTimeout(() => {
-          setShowMobileSheet(true);
+          // Don't show if shape was dragged or if user is editing text
+          const isEditing = editor.getEditingShapeId() === nodeId;
+          if (!wasDraggedRef.current && !isEditing) {
+            setShowMobileSheet(true);
+          }
         }, 200); // 200ms delay
       } else {
         setSelectedNodeId(null);
         setShowMobileSheet(false);
-        lastShapePosition = null;
+        initialPosition = null;
+        wasDraggedRef.current = false;
       }
     };
 
-    const checkForDrag = () => {
-      // If we have a pending timeout and the selected shape moved, cancel it
-      if (selectionTimeoutRef.current && selectedNodeId && lastShapePosition) {
+    const checkForDragOrEdit = () => {
+      // Check if the selected shape moved (was dragged)
+      if (selectedNodeId && initialPosition) {
         const shape = editor.getShape(selectedNodeId) as DiagramNodeShape | undefined;
         if (shape) {
-          const moved = Math.abs(shape.x - lastShapePosition.x) > 2 ||
-                       Math.abs(shape.y - lastShapePosition.y) > 2;
+          const moved = Math.abs(shape.x - initialPosition.x) > 2 ||
+                       Math.abs(shape.y - initialPosition.y) > 2;
           if (moved) {
-            // Shape was dragged, cancel the timeout
-            clearTimeout(selectionTimeoutRef.current);
-            selectionTimeoutRef.current = null;
+            // Mark as dragged - this prevents bottom sheet from showing
+            wasDraggedRef.current = true;
+            // Cancel pending timeout
+            if (selectionTimeoutRef.current) {
+              clearTimeout(selectionTimeoutRef.current);
+              selectionTimeoutRef.current = null;
+            }
+            // Hide bottom sheet if it's showing
+            setShowMobileSheet(false);
           }
         }
       }
+
+      // Check if user is editing text - hide bottom sheet if so
+      if (selectedNodeId && editor.getEditingShapeId() === selectedNodeId) {
+        setShowMobileSheet(false);
+        // Cancel pending timeout
+        if (selectionTimeoutRef.current) {
+          clearTimeout(selectionTimeoutRef.current);
+          selectionTimeoutRef.current = null;
+        }
+      }
+
       // Also force re-render when shapes change (this updates picker displays)
       forceUpdate({});
     };
@@ -128,7 +152,7 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
     }, { scope: 'session' });
 
     const disposeDocument = editor.store.listen(() => {
-      checkForDrag();
+      checkForDragOrEdit();
     }, { scope: 'document' });
 
     return () => {
