@@ -87,3 +87,31 @@ button, select {
 .tldraw {
   touch-action: manipulation;
 }
+
+/* Mobile-only safe area handling */
+.mobile-safe-top {
+  padding-top: max(12px, env(safe-area-inset-top));
+}
+
+.mobile-safe-bottom {
+  padding-bottom: max(70px, env(safe-area-inset-bottom));
+}
+
+/* Status banner mobile positioning */
+.status-banner-mobile {
+  top: calc(64px + env(safe-area-inset-top, 0px));
+}
+
+@media (min-width: 768px) {
+  .mobile-safe-top {
+    padding-top: 1rem; /* md:p-4 = 16px */
+  }
+
+  .mobile-safe-bottom {
+    padding-bottom: 0;
+  }
+
+  .status-banner-mobile {
+    top: 80px; /* md:top-20 */
+  }
+}

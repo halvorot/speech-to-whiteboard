@@ -521,7 +521,7 @@ export function Whiteboard() {
       {/* Status banner - fixed position, doesn't affect layout */}
       <StatusBanner status={appStatus} />
 
-      <header className="bg-gray-800 text-white p-3 md:p-4 flex justify-between items-center relative z-40">
+      <header className="bg-gray-800 text-white p-3 md:p-4 flex justify-between items-center relative z-40 mobile-safe-top">
         <h1 className="text-lg md:text-xl font-bold">VoiceBoard</h1>
 
         {/* Transcript - hidden on mobile */}
@@ -586,7 +586,7 @@ export function Whiteboard() {
           </button>
         </div>
       </header>
-      <div className="flex-1 relative" style={{ paddingBottom: 'max(80px, env(safe-area-inset-bottom))' }}>
+      <div className="flex-1 relative mobile-safe-bottom">
         <Tldraw
           onMount={setEditor}
           shapeUtils={customShapeUtils}
