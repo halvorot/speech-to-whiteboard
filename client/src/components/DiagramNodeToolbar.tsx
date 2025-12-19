@@ -255,7 +255,7 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
   return (
     <>
       {/* Desktop toolbar - hidden on mobile */}
-      <div className="hidden md:block absolute top-16 left-4 z-50 bg-white rounded-lg shadow-lg border border-gray-200 p-3 flex gap-4">
+      <div className="hidden md:flex absolute top-16 left-4 z-50 bg-white rounded-lg shadow-lg border border-gray-200 p-3 gap-4">
         {/* Type selector */}
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-gray-600">Type / Icon</label>

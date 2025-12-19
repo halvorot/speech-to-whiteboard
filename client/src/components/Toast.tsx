@@ -50,7 +50,6 @@ export function Toast({ message, onDismiss }: ToastProps) {
 interface ToastContainerProps {
   messages: StatusMessage[];
   onDismiss: (id: string) => void;
-  hasBottomSheet?: boolean;
 }
 
 export function ToastContainer({ messages, onDismiss }: ToastContainerProps) {
