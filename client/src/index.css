@@ -102,6 +102,12 @@ button, select {
   top: calc(64px + env(safe-area-inset-top, 0px));
 }
 
+/* Toast positioning - top-right on mobile, bottom-right on desktop */
+.toast-container-mobile {
+  top: calc(72px + env(safe-area-inset-top, 0px));
+  right: 1rem;
+}
+
 @media (min-width: 768px) {
   .mobile-safe-top {
     padding-top: 1rem; /* md:p-4 = 16px */
@@ -113,5 +119,10 @@ button, select {
 
   .status-banner-mobile {
     top: 80px; /* md:top-20 */
+  }
+
+  .toast-container-mobile {
+    top: auto;
+    bottom: 1rem;
   }
 }

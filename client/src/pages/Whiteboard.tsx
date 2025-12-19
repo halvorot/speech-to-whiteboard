@@ -600,7 +600,6 @@ export function Whiteboard() {
       <ToastContainer
         messages={toastMessages}
         onDismiss={dismissToast}
-        hasBottomSheet={editor ? editor.getSelectedShapes().some((s) => s.type === 'diagram-node') : false}
       />
 
       {/* Mobile menu */}
