@@ -118,8 +118,7 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
     });
   };
 
-  // Reusable select component
-  const TypeSelector = ({ className = '' }: { className?: string }) => (
+  const renderTypeSelector = (className: string) => (
     <select
       value={nodeType}
       onChange={(e) => handleTypeChange(e.target.value as NodeType)}
@@ -177,7 +176,7 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
         {/* Type selector */}
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-gray-600">Type / Icon</label>
-          <TypeSelector className="px-3 py-1.5 text-sm border border-gray-300 rounded bg-white hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          {renderTypeSelector("px-3 py-1.5 text-sm border border-gray-300 rounded bg-white hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500")}
         </div>
 
         {/* Color picker */}
@@ -208,7 +207,7 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
           {/* Type selector - full width on mobile */}
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium text-gray-700">Type / Icon</label>
-            <TypeSelector className="w-full px-4 py-3 text-base border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            {renderTypeSelector("w-full px-4 py-3 text-base border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500")}
           </div>
 
           {/* Color picker - larger touch targets */}

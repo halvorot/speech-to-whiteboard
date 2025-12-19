@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 
 interface MobileBottomSheetProps {
   isOpen: boolean;
@@ -16,6 +16,14 @@ export const MobileBottomSheet = ({
   const touchStartY = useRef<number>(0);
   const touchCurrentY = useRef<number>(0);
 
+  const handleClose = useCallback(() => {
+    setIsClosing(true);
+    setTimeout(() => {
+      setIsClosing(false);
+      onClose();
+    }, 300); // Match animation duration
+  }, [onClose]);
+
   // Close on Escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -26,15 +34,7 @@ export const MobileBottomSheet = ({
 
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [isOpen]);
-
-  const handleClose = () => {
-    setIsClosing(true);
-    setTimeout(() => {
-      setIsClosing(false);
-      onClose();
-    }, 300); // Match animation duration
-  };
+  }, [isOpen, handleClose]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY;
@@ -91,7 +91,9 @@ export const MobileBottomSheet = ({
         </div>
 
         {/* Content */}
-        <div className="pb-safe">{children}</div>
+        <div style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+          {children}
+        </div>
       </div>
     </>
   );

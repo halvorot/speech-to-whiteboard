@@ -55,9 +55,14 @@ interface ToastContainerProps {
 
 export function ToastContainer({ messages, onDismiss, hasBottomSheet = false }: ToastContainerProps) {
   return (
-    <div className={`fixed right-4 z-50 flex flex-col gap-2 transition-all ${
-      hasBottomSheet ? 'bottom-80' : 'bottom-4'
-    } md:bottom-4`}>
+    <div
+      className={`fixed right-4 z-50 flex flex-col gap-2 transition-all ${
+        hasBottomSheet ? 'bottom-80' : 'bottom-4'
+      } md:bottom-4`}
+      style={{
+        paddingBottom: 'env(safe-area-inset-bottom)',
+      }}
+    >
       {messages.map((message) => (
         <Toast key={message.id} message={message} onDismiss={onDismiss} />
       ))}

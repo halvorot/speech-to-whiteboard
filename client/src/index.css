@@ -3,6 +3,8 @@
 body {
   margin: 0;
   min-height: 100vh;
+  /* Support for iPhone notch and Safari toolbar */
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 /* Toast slide-in animation */
@@ -80,6 +82,8 @@ button, select {
   touch-action: manipulation;
 }
 
+/* Allow all gestures on tldraw canvas except double-tap zoom */
+/* This preserves double-click to edit functionality */
 .tldraw {
-  touch-action: pinch-zoom pan-x pan-y;
+  touch-action: manipulation;
 }
