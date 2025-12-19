@@ -94,7 +94,7 @@ button, select {
 }
 
 .mobile-safe-bottom {
-  padding-bottom: max(70px, env(safe-area-inset-bottom));
+  padding-bottom: max(80px, env(safe-area-inset-bottom));
 }
 
 /* Status banner mobile positioning */
