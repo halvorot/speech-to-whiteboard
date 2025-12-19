@@ -37,6 +37,11 @@ export function Whiteboard() {
   const hasLoadedInitialSnapshotRef = useRef(false);
 
   const tldrawLicenseKey = import.meta.env.VITE_TLDRAW_LICENSE_KEY || undefined;
+  if (!tldrawLicenseKey) {
+    console.warn('Tldraw license key is not set. Please set VITE_TLDRAW_LICENSE_KEY in your environment variables.');
+  } else {
+    console.log('Tldraw license key loaded. Key:', tldrawLicenseKey.substring(0, 10) + '...' );
+  }
 
   console.log('Whiteboard render - lastTranscript:', lastTranscript, 'sketchCommands:', sketchCommands);
 
