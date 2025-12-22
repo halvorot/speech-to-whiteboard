@@ -13,7 +13,7 @@
     "test:coverage": "vitest --coverage"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.88.0",
+    "@supabase/supabase-js": "^2.89.0",
     "elkjs": "^0.11.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
