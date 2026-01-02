@@ -15,7 +15,9 @@ export function StatusBanner({ status }: StatusBannerProps) {
   const label = getStatusLabel(status);
 
   return (
-    <div className={`fixed top-20 left-0 right-0 z-30 ${bgColor} text-white px-4 py-2 text-sm font-medium flex items-center justify-center gap-2 shadow-lg`}>
+    <div
+      className={`fixed left-0 right-0 z-30 ${bgColor} text-white px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm font-medium flex items-center justify-center gap-2 shadow-lg status-banner-mobile`}
+    >
       <span className="animate-pulse">{icon}</span>
       <span>{label}</span>
       {status !== 'error' && (
