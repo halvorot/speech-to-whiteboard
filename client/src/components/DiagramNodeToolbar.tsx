@@ -92,10 +92,10 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
     };
 
     const handlePointerUp = () => {
-      // Capture current interaction state before clearing refs (setTimeout closure will use these values)
+      // Capture current interaction state before clearing refs
       const wasInteraction = wasInteractionRef.current;
 
-      // Clear pointer tracking immediately - safe because setTimeout has captured the values it needs
+      // Clear pointer tracking now that pointer up is complete
       pointerDownPosRef.current = null;
       wasInteractionRef.current = false;
 
