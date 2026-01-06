@@ -64,7 +64,7 @@ interface DiagramNodeToolbarProps {
 export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
   const [selectedNodeId, setSelectedNodeId] = useState<TLShapeId | null>(null);
   const [showMobileSheet, setShowMobileSheet] = useState(false);
-  const [, forceUpdate] = useState({});
+  const [shapeProps, setShapeProps] = useState<{ nodeType: NodeType; color: TLDefaultColorStyle } | null>(null);
   const pointerDownPosRef = useRef<{ x: number; y: number } | null>(null);
   const wasInteractionRef = useRef(false);
 
@@ -92,9 +92,18 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
     };
 
     const handlePointerUp = () => {
+      // Capture current interaction state before clearing refs (setTimeout closure will use these values)
+      const wasInteraction = wasInteractionRef.current;
+
+      // Clear pointer tracking immediately - safe because setTimeout has captured the values it needs
+      pointerDownPosRef.current = null;
+      wasInteractionRef.current = false;
+
       // On pointer up, show bottom sheet only if it was a clean tap
-      if (!wasInteractionRef.current) {
-        // Small delay to allow selection to update
+      if (!wasInteraction) {
+        // Delay to allow tldraw's selection state to propagate through its event system.
+        // tldraw processes pointer events internally and updates selection asynchronously,
+        // so we must wait for that state update before checking getSelectedShapes().
         setTimeout(() => {
           const selectedShapes = editor.getSelectedShapes();
           const diagramNodes = selectedShapes.filter((s) => s.type === 'diagram-node') as DiagramNodeShape[];
@@ -105,12 +114,6 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
           }
         }, 100);
       }
-
-      // Clear pointer tracking
-      setTimeout(() => {
-        pointerDownPosRef.current = null;
-        wasInteractionRef.current = false;
-      }, 150);
     };
 
     container.addEventListener('pointerdown', handlePointerDown);
@@ -132,11 +135,13 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
       const selectedShapes = editor.getSelectedShapes();
       const diagramNodes = selectedShapes.filter((s) => s.type === 'diagram-node') as DiagramNodeShape[];
 
-      // Update selected node ID
+      // Update selected node ID and props
       if (diagramNodes.length === 1) {
         setSelectedNodeId(diagramNodes[0].id);
+        setShapeProps({ nodeType: diagramNodes[0].props.nodeType, color: diagramNodes[0].props.color });
       } else {
         setSelectedNodeId(null);
+        setShapeProps(null);
         setShowMobileSheet(false);
       }
     };
@@ -146,8 +151,13 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
       if (selectedNodeId && editor.getEditingShapeId() === selectedNodeId) {
         setShowMobileSheet(false);
       }
-      // Force re-render when shapes change (updates picker displays)
-      forceUpdate({});
+      // Update shape props when shape changes (updates picker displays)
+      if (selectedNodeId) {
+        const shape = editor.getShape(selectedNodeId) as DiagramNodeShape | undefined;
+        if (shape) {
+          setShapeProps({ nodeType: shape.props.nodeType, color: shape.props.color });
+        }
+      }
     };
 
     // Initial update
@@ -169,21 +179,15 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
   }, [editor, selectedNodeId]);
 
   // Don't render if no node selected
-  if (!selectedNodeId) {
+  if (!selectedNodeId || !shapeProps) {
     return null;
   }
 
-  // Get current shape from editor (this ensures we always have latest props)
-  const selectedNode = editor.getShape(selectedNodeId) as DiagramNodeShape | undefined;
-  if (!selectedNode) {
-    return null;
-  }
-
-  const { nodeType, color } = selectedNode.props;
+  const { nodeType, color } = shapeProps;
 
   const handleTypeChange = (newType: NodeType) => {
     editor.updateShape({
-      id: selectedNode.id,
+      id: selectedNodeId,
       type: 'diagram-node',
       props: {
         nodeType: newType,
@@ -193,7 +197,7 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
 
   const handleColorChange = (newColor: TLDefaultColorStyle) => {
     editor.updateShape({
-      id: selectedNode.id,
+      id: selectedNodeId,
       type: 'diagram-node',
       props: {
         color: newColor,
