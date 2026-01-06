@@ -276,6 +276,8 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
                 } transition-all hover:scale-110`}
                 style={{ backgroundColor: COLOR_HEX_MAP[c] }}
                 title={c}
+                aria-label={`Select ${c} color`}
+                aria-pressed={color === c}
               />
             ))}
           </div>
@@ -310,6 +312,8 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
                   } transition-all active:scale-95`}
                   style={{ backgroundColor: COLOR_HEX_MAP[c] }}
                   title={c}
+                  aria-label={`Select ${c} color`}
+                  aria-pressed={color === c}
                 />
               ))}
             </div>

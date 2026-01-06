@@ -33,7 +33,7 @@ export function FirstTimeHelper() {
           {/* Close button */}
           <button
             onClick={handleDismiss}
-            className="absolute top-2 right-2 text-white/80 hover:text-white text-xl leading-none w-6 h-6 flex items-center justify-center"
+            className="absolute top-2 right-2 text-white/80 hover:text-white text-xl leading-none min-w-[44px] min-h-[44px] flex items-center justify-center"
             aria-label="Dismiss"
           >
             ×
