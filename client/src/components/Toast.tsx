@@ -31,15 +31,15 @@ export function Toast({ message, onDismiss }: ToastProps) {
 
   return (
     <div
-      className={`${bgColor} text-white px-4 py-3 rounded-lg shadow-lg flex items-start gap-3 min-w-[300px] max-w-[400px] animate-slide-in`}
+      className={`${bgColor} text-white px-4 py-3 rounded-lg shadow-lg flex items-start gap-3 min-w-[280px] max-w-[340px] md:min-w-[300px] md:max-w-[400px] animate-slide-in`}
     >
       <span className="text-lg">{icon}</span>
       <div className="flex-1">
-        <p className="text-sm font-medium">{message.message}</p>
+        <p className="text-xs md:text-sm font-medium">{message.message}</p>
       </div>
       <button
         onClick={() => onDismiss(message.id)}
-        className="text-white hover:text-gray-200 text-xl leading-none"
+        className="text-white hover:text-gray-200 text-xl leading-none min-w-[44px] min-h-[44px] flex items-center justify-center -m-2"
       >
         ×
       </button>
@@ -54,7 +54,7 @@ interface ToastContainerProps {
 
 export function ToastContainer({ messages, onDismiss }: ToastContainerProps) {
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+    <div className="fixed z-50 flex flex-col gap-2 toast-container-mobile">
       {messages.map((message) => (
         <Toast key={message.id} message={message} onDismiss={onDismiss} />
       ))}

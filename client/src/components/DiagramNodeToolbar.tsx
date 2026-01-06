@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
-import { type Editor, type TLDefaultColorStyle } from 'tldraw';
+import { useEffect, useState, useRef } from 'react';
+import { type Editor, type TLDefaultColorStyle, type TLShapeId } from 'tldraw';
 import type { NodeType } from '../types/sketch';
 import type { DiagramNodeShape } from '../lib/DiagramNodeShape';
+import { MobileBottomSheet } from './MobileBottomSheet';
 
 const ALL_NODE_TYPES: { type: NodeType; label: string; category: string }[] = [
   // Semantic types
@@ -61,19 +62,98 @@ interface DiagramNodeToolbarProps {
 }
 
 export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
-  const [selectedNode, setSelectedNode] = useState<DiagramNodeShape | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<TLShapeId | null>(null);
+  const [showMobileSheet, setShowMobileSheet] = useState(false);
+  const [shapeProps, setShapeProps] = useState<{ nodeType: NodeType; color: TLDefaultColorStyle } | null>(null);
+  const pointerDownPosRef = useRef<{ x: number; y: number } | null>(null);
+  const wasInteractionRef = useRef(false);
+  const shouldShowSheetOnNextSelectionRef = useRef(false);
 
-  // Subscribe to selection changes
+  // Track pointer events to detect drags
+  useEffect(() => {
+    const container = editor.getContainer();
+
+    const handlePointerDown = (e: PointerEvent) => {
+      // Record pointer down position
+      pointerDownPosRef.current = { x: e.clientX, y: e.clientY };
+      wasInteractionRef.current = false;
+      // Hide bottom sheet immediately on pointer down
+      setShowMobileSheet(false);
+    };
+
+    const handlePointerMove = (e: PointerEvent) => {
+      // If pointer moved significantly, mark as interaction (drag)
+      if (pointerDownPosRef.current) {
+        const dx = Math.abs(e.clientX - pointerDownPosRef.current.x);
+        const dy = Math.abs(e.clientY - pointerDownPosRef.current.y);
+        if (dx > 5 || dy > 5) {
+          wasInteractionRef.current = true;
+        }
+      }
+    };
+
+    const handlePointerUp = () => {
+      // Capture current interaction state before clearing refs
+      const wasInteraction = wasInteractionRef.current;
+
+      // Clear pointer tracking now that pointer up is complete
+      pointerDownPosRef.current = null;
+      wasInteractionRef.current = false;
+
+      // Signal selection listener to show bottom sheet if this was a clean tap
+      // The listener will handle this when tldraw's selection state updates
+      shouldShowSheetOnNextSelectionRef.current = !wasInteraction;
+    };
+
+    container.addEventListener('pointerdown', handlePointerDown);
+    container.addEventListener('pointermove', handlePointerMove);
+    container.addEventListener('pointerup', handlePointerUp);
+    container.addEventListener('pointercancel', handlePointerUp);
+
+    return () => {
+      container.removeEventListener('pointerdown', handlePointerDown);
+      container.removeEventListener('pointermove', handlePointerMove);
+      container.removeEventListener('pointerup', handlePointerUp);
+      container.removeEventListener('pointercancel', handlePointerUp);
+    };
+  }, [editor]);
+
+  // Subscribe to selection changes and shape updates
   useEffect(() => {
     const updateSelection = () => {
       const selectedShapes = editor.getSelectedShapes();
       const diagramNodes = selectedShapes.filter((s) => s.type === 'diagram-node') as DiagramNodeShape[];
 
-      // Only show toolbar if exactly one diagram node is selected
+      // Update selected node ID and props
       if (diagramNodes.length === 1) {
-        setSelectedNode(diagramNodes[0]);
+        setSelectedNodeId(diagramNodes[0].id);
+        setShapeProps({ nodeType: diagramNodes[0].props.nodeType, color: diagramNodes[0].props.color });
+
+        // Show bottom sheet if this was triggered by a clean tap
+        if (shouldShowSheetOnNextSelectionRef.current && !editor.getEditingShapeId()) {
+          setShowMobileSheet(true);
+        }
       } else {
-        setSelectedNode(null);
+        setSelectedNodeId(null);
+        setShapeProps(null);
+        setShowMobileSheet(false);
+      }
+
+      // Clear the flag after processing
+      shouldShowSheetOnNextSelectionRef.current = false;
+    };
+
+    const checkForEdit = () => {
+      // Check if user is editing text - hide bottom sheet if so
+      if (selectedNodeId && editor.getEditingShapeId() === selectedNodeId) {
+        setShowMobileSheet(false);
+      }
+      // Update shape props when shape changes (updates picker displays)
+      if (selectedNodeId) {
+        const shape = editor.getShape(selectedNodeId) as DiagramNodeShape | undefined;
+        if (shape) {
+          setShapeProps({ nodeType: shape.props.nodeType, color: shape.props.color });
+        }
       }
     };
 
@@ -81,25 +161,30 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
     updateSelection();
 
     // Listen to selection changes
-    const dispose = editor.store.listen(() => {
+    const disposeSession = editor.store.listen(() => {
       updateSelection();
     }, { scope: 'session' });
 
+    const disposeDocument = editor.store.listen(() => {
+      checkForEdit();
+    }, { scope: 'document' });
+
     return () => {
-      dispose();
+      disposeSession();
+      disposeDocument();
     };
-  }, [editor]);
+  }, [editor, selectedNodeId]);
 
   // Don't render if no node selected
-  if (!selectedNode) {
+  if (!selectedNodeId || !shapeProps) {
     return null;
   }
 
-  const { nodeType, color } = selectedNode.props;
+  const { nodeType, color } = shapeProps;
 
   const handleTypeChange = (newType: NodeType) => {
     editor.updateShape({
-      id: selectedNode.id,
+      id: selectedNodeId,
       type: 'diagram-node',
       props: {
         nodeType: newType,
@@ -109,7 +194,7 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
 
   const handleColorChange = (newColor: TLDefaultColorStyle) => {
     editor.updateShape({
-      id: selectedNode.id,
+      id: selectedNodeId,
       type: 'diagram-node',
       props: {
         color: newColor,
@@ -117,78 +202,124 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
     });
   };
 
-  return (
-    <div className="absolute top-16 left-4 z-50 bg-white rounded-lg shadow-lg border border-gray-200 p-3 flex gap-4">
-      {/* Type selector */}
-      <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium text-gray-600">Type / Icon</label>
-        <select
-          value={nodeType}
-          onChange={(e) => handleTypeChange(e.target.value as NodeType)}
-          className="px-3 py-1.5 text-sm border border-gray-300 rounded bg-white hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <optgroup label="Data">
-            {ALL_NODE_TYPES.filter((t) => t.category === 'Data').map((t) => (
-              <option key={t.type} value={t.type}>
-                {t.label}
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label="Infrastructure">
-            {ALL_NODE_TYPES.filter((t) => t.category === 'Infrastructure').map((t) => (
-              <option key={t.type} value={t.type}>
-                {t.label}
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label="Shapes">
-            {ALL_NODE_TYPES.filter((t) => t.category === 'Shapes').map((t) => (
-              <option key={t.type} value={t.type}>
-                {t.label}
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label="Other">
-            {ALL_NODE_TYPES.filter((t) => t.category === 'Other').map((t) => (
-              <option key={t.type} value={t.type}>
-                {t.label}
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label="Containers">
-            {ALL_NODE_TYPES.filter((t) => t.category === 'Containers').map((t) => (
-              <option key={t.type} value={t.type}>
-                {t.label}
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label="Annotation">
-            {ALL_NODE_TYPES.filter((t) => t.category === 'Annotation').map((t) => (
-              <option key={t.type} value={t.type}>
-                {t.label}
-              </option>
-            ))}
-          </optgroup>
-        </select>
-      </div>
+  const renderTypeSelector = (className: string) => (
+    <select
+      value={nodeType}
+      onChange={(e) => handleTypeChange(e.target.value as NodeType)}
+      className={className}
+    >
+      <optgroup label="Data">
+        {ALL_NODE_TYPES.filter((t) => t.category === 'Data').map((t) => (
+          <option key={t.type} value={t.type}>
+            {t.label}
+          </option>
+        ))}
+      </optgroup>
+      <optgroup label="Infrastructure">
+        {ALL_NODE_TYPES.filter((t) => t.category === 'Infrastructure').map((t) => (
+          <option key={t.type} value={t.type}>
+            {t.label}
+          </option>
+        ))}
+      </optgroup>
+      <optgroup label="Shapes">
+        {ALL_NODE_TYPES.filter((t) => t.category === 'Shapes').map((t) => (
+          <option key={t.type} value={t.type}>
+            {t.label}
+          </option>
+        ))}
+      </optgroup>
+      <optgroup label="Other">
+        {ALL_NODE_TYPES.filter((t) => t.category === 'Other').map((t) => (
+          <option key={t.type} value={t.type}>
+            {t.label}
+          </option>
+        ))}
+      </optgroup>
+      <optgroup label="Containers">
+        {ALL_NODE_TYPES.filter((t) => t.category === 'Containers').map((t) => (
+          <option key={t.type} value={t.type}>
+            {t.label}
+          </option>
+        ))}
+      </optgroup>
+      <optgroup label="Annotation">
+        {ALL_NODE_TYPES.filter((t) => t.category === 'Annotation').map((t) => (
+          <option key={t.type} value={t.type}>
+            {t.label}
+          </option>
+        ))}
+      </optgroup>
+    </select>
+  );
 
-      {/* Color picker */}
-      <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium text-gray-600">Color</label>
-        <div className="flex gap-1 flex-wrap max-w-[200px]">
-          {ALL_COLORS.map((c) => (
-            <button
-              key={c}
-              onClick={() => handleColorChange(c)}
-              className={`w-6 h-6 rounded border-2 ${
-                color === c ? 'border-blue-600 scale-110' : 'border-gray-300'
-              } transition-all hover:scale-110`}
-              style={{ backgroundColor: COLOR_HEX_MAP[c] }}
-              title={c}
-            />
-          ))}
+  return (
+    <>
+      {/* Desktop toolbar - hidden on mobile */}
+      <div className="hidden md:flex absolute top-16 left-4 z-50 bg-white rounded-lg shadow-lg border border-gray-200 p-3 gap-4">
+        {/* Type selector */}
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-gray-600">Type / Icon</label>
+          {renderTypeSelector("px-3 py-1.5 text-sm border border-gray-300 rounded bg-white hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500")}
+        </div>
+
+        {/* Color picker */}
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-gray-600">Color</label>
+          <div className="flex gap-1 flex-wrap max-w-[200px]">
+            {ALL_COLORS.map((c) => (
+              <button
+                key={c}
+                onClick={() => handleColorChange(c)}
+                className={`w-6 h-6 rounded border-2 ${
+                  color === c ? 'border-blue-600 scale-110' : 'border-gray-300'
+                } transition-all hover:scale-110`}
+                style={{ backgroundColor: COLOR_HEX_MAP[c] }}
+                title={c}
+                aria-label={`Select ${c} color`}
+                aria-pressed={color === c}
+              />
+            ))}
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Mobile bottom sheet - visible only on mobile */}
+      <MobileBottomSheet
+        isOpen={showMobileSheet}
+        onClose={() => {
+          setShowMobileSheet(false);
+          editor.setSelectedShapes([]);
+        }}
+      >
+        <div className="p-4 space-y-4">
+          {/* Type selector - full width on mobile */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-700">Type / Icon</label>
+            {renderTypeSelector("w-full px-4 py-3 text-base border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500")}
+          </div>
+
+          {/* Color picker - larger touch targets */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-700">Color</label>
+            <div className="grid grid-cols-6 gap-2">
+              {ALL_COLORS.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => handleColorChange(c)}
+                  className={`w-11 h-11 rounded-lg border-2 ${
+                    color === c ? 'border-blue-600 ring-2 ring-blue-300' : 'border-gray-300'
+                  } transition-all active:scale-95`}
+                  style={{ backgroundColor: COLOR_HEX_MAP[c] }}
+                  title={c}
+                  aria-label={`Select ${c} color`}
+                  aria-pressed={color === c}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </MobileBottomSheet>
+    </>
   );
 };

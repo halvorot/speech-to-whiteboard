@@ -9,6 +9,8 @@ import { StatusBanner } from '../components/StatusBanner';
 import { ToastContainer } from '../components/Toast';
 import { DiagramNodeToolbar } from '../components/DiagramNodeToolbar';
 import { SaveStatusIndicator } from '../components/SaveStatusIndicator';
+import { MobileMenu } from '../components/MobileMenu';
+import { FirstTimeHelper } from '../components/FirstTimeHelper';
 import type { SketchResponse } from '../types/sketch';
 import type { AppStatus, StatusMessage } from '../types/status';
 
@@ -25,6 +27,7 @@ export function Whiteboard() {
   const [appStatus, setAppStatus] = useState<AppStatus>('idle');
   const [toastMessages, setToastMessages] = useState<StatusMessage[]>([]);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved' | 'error'>('saved');
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const graphStateRef = useRef<GraphState>(createGraphState());
   const wsRef = useRef<WebSocket | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -519,9 +522,11 @@ export function Whiteboard() {
       {/* Status banner - fixed position, doesn't affect layout */}
       <StatusBanner status={appStatus} />
 
-      <header className="bg-gray-800 text-white p-4 flex justify-between items-center relative z-40">
-        <h1 className="text-xl font-bold">VoiceBoard</h1>
-        <div className="flex-1 mx-8">
+      <header className="bg-gray-800 text-white p-3 md:p-4 flex justify-between items-center relative z-40 mobile-safe-top">
+        <h1 className="text-lg md:text-xl font-bold">VoiceBoard</h1>
+
+        {/* Transcript - hidden on mobile */}
+        <div className="hidden md:flex flex-1 mx-8">
           <div className="bg-gray-700 px-4 py-2 rounded text-sm">
             {lastTranscript ? (
               <><span className="text-gray-400">You said:</span> {lastTranscript}</>
@@ -532,12 +537,42 @@ export function Whiteboard() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <SaveStatusIndicator status={saveStatus} />
+
+        {/* Controls */}
+        <div className="flex items-center gap-2 md:gap-4">
+          {/* Save status - hidden on mobile */}
+          <div className="hidden md:block">
+            <SaveStatusIndicator status={saveStatus} />
+          </div>
+
+          {/* Mobile-only save status icon */}
+          <div className="md:hidden flex items-center justify-center min-w-[32px] min-h-[32px]">
+            {saveStatus === 'saved' && (
+              <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            )}
+            {saveStatus === 'saving' && (
+              <svg className="w-5 h-5 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            )}
+            {saveStatus === 'unsaved' && (
+              <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+            )}
+            {saveStatus === 'error' && (
+              <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            )}
+          </div>
+
+          {/* Record button - always visible */}
           <button
             onClick={handleRecordingToggle}
             disabled={!isWsConnected}
-            className={`px-6 py-3 rounded-full font-medium transition-all ${
+            className={`px-4 py-2 md:px-6 md:py-3 rounded-full font-medium transition-all text-sm md:text-base ${
               isRecording
                 ? 'bg-red-600 text-white scale-110 animate-pulse'
                 : isWsConnected
@@ -545,33 +580,66 @@ export function Whiteboard() {
                 : 'bg-gray-400 text-gray-200 cursor-not-allowed'
             }`}
           >
-            {isRecording
-              ? '🔴 Recording...'
-              : isWsConnected
-              ? '🎤 Start Recording'
-              : '🎤 Connecting...'
-            }
+            {/* Mobile: icon only, Desktop: icon + text */}
+            <span className="md:hidden">{isRecording ? '🔴' : isWsConnected ? '🎤' : '🎤'}</span>
+            <span className="hidden md:inline">
+              {isRecording
+                ? '🔴 Recording...'
+                : isWsConnected
+                ? '🎤 Start Recording'
+                : '🎤 Connecting...'
+              }
+            </span>
           </button>
+
+          {/* Sign out - hidden on mobile */}
           <button
             onClick={signOut}
-            className="px-4 py-2 bg-red-600 rounded hover:bg-red-700"
+            className="hidden md:block px-4 py-2 bg-red-600 rounded hover:bg-red-700"
           >
             Sign Out
           </button>
+
+          {/* Mobile menu button - visible only on mobile */}
+          <button
+            onClick={() => setShowMobileMenu(true)}
+            className="md:hidden px-3 py-2 text-white text-2xl min-w-[44px] min-h-[44px] flex items-center justify-center"
+            aria-label="Open menu"
+          >
+            ⋮
+          </button>
         </div>
       </header>
-      <div className="flex-1 relative">
+      <div className="flex-1 relative mobile-safe-bottom">
         <Tldraw
           onMount={setEditor}
           shapeUtils={customShapeUtils}
           licenseKey={tldrawLicenseKey}
+          components={{
+            ContextMenu: null, // Hide context menu on mobile to avoid conflict with bottom sheet
+          }}
         />
         {/* Diagram node toolbar - shown when a node is selected */}
         {editor && <DiagramNodeToolbar editor={editor} />}
       </div>
 
       {/* Toast notifications */}
-      <ToastContainer messages={toastMessages} onDismiss={dismissToast} />
+      <ToastContainer
+        messages={toastMessages}
+        onDismiss={dismissToast}
+      />
+
+      {/* First-time user helper */}
+      <FirstTimeHelper />
+
+      {/* Mobile menu */}
+      <MobileMenu
+        isOpen={showMobileMenu}
+        onClose={() => setShowMobileMenu(false)}
+        lastTranscript={lastTranscript}
+        saveStatus={saveStatus}
+        onSignOut={signOut}
+      />
     </div>
   );
 }
