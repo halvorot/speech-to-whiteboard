@@ -1,17 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 const STORAGE_KEY = 'hasSeenWelcome';
 
 export function FirstTimeHelper() {
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
+  const [isVisible, setIsVisible] = useState(() => {
     // Check if user has seen welcome before
     const hasSeenWelcome = localStorage.getItem(STORAGE_KEY);
-    if (!hasSeenWelcome) {
-      setIsVisible(true);
-    }
-  }, []);
+    return !hasSeenWelcome;
+  });
 
   const handleDismiss = () => {
     localStorage.setItem(STORAGE_KEY, 'true');
