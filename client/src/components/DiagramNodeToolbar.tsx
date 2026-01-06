@@ -67,6 +67,7 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
   const [shapeProps, setShapeProps] = useState<{ nodeType: NodeType; color: TLDefaultColorStyle } | null>(null);
   const pointerDownPosRef = useRef<{ x: number; y: number } | null>(null);
   const wasInteractionRef = useRef(false);
+  const shouldShowSheetOnNextSelectionRef = useRef(false);
 
   // Track pointer events to detect drags
   useEffect(() => {
@@ -99,21 +100,9 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
       pointerDownPosRef.current = null;
       wasInteractionRef.current = false;
 
-      // On pointer up, show bottom sheet only if it was a clean tap
-      if (!wasInteraction) {
-        // Delay to allow tldraw's selection state to propagate through its event system.
-        // tldraw processes pointer events internally and updates selection asynchronously,
-        // so we must wait for that state update before checking getSelectedShapes().
-        setTimeout(() => {
-          const selectedShapes = editor.getSelectedShapes();
-          const diagramNodes = selectedShapes.filter((s) => s.type === 'diagram-node') as DiagramNodeShape[];
-
-          // Show bottom sheet if exactly one diagram node is selected and not editing
-          if (diagramNodes.length === 1 && !editor.getEditingShapeId()) {
-            setShowMobileSheet(true);
-          }
-        }, 100);
-      }
+      // Signal selection listener to show bottom sheet if this was a clean tap
+      // The listener will handle this when tldraw's selection state updates
+      shouldShowSheetOnNextSelectionRef.current = !wasInteraction;
     };
 
     container.addEventListener('pointerdown', handlePointerDown);
@@ -139,11 +128,19 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
       if (diagramNodes.length === 1) {
         setSelectedNodeId(diagramNodes[0].id);
         setShapeProps({ nodeType: diagramNodes[0].props.nodeType, color: diagramNodes[0].props.color });
+
+        // Show bottom sheet if this was triggered by a clean tap
+        if (shouldShowSheetOnNextSelectionRef.current && !editor.getEditingShapeId()) {
+          setShowMobileSheet(true);
+        }
       } else {
         setSelectedNodeId(null);
         setShapeProps(null);
         setShowMobileSheet(false);
       }
+
+      // Clear the flag after processing
+      shouldShowSheetOnNextSelectionRef.current = false;
     };
 
     const checkForEdit = () => {
