@@ -17,20 +17,20 @@ repositories {
 
 dependencies {
     // Ktor Server
-    implementation("io.ktor:ktor-server-core:3.3.3")
-    implementation("io.ktor:ktor-server-netty:3.3.3")
-    implementation("io.ktor:ktor-server-websockets:3.3.3")
-    implementation("io.ktor:ktor-server-content-negotiation:3.3.3")
-    implementation("io.ktor:ktor-server-cors:3.3.3")
+    implementation("io.ktor:ktor-server-core:3.4.0")
+    implementation("io.ktor:ktor-server-netty:3.4.0")
+    implementation("io.ktor:ktor-server-websockets:3.4.0")
+    implementation("io.ktor:ktor-server-content-negotiation:3.4.0")
+    implementation("io.ktor:ktor-server-cors:3.4.0")
 
     // Ktor Client (for Deepgram API)
-    implementation("io.ktor:ktor-client-core:3.3.3")
-    implementation("io.ktor:ktor-client-cio:3.3.3")
-    implementation("io.ktor:ktor-client-websockets:3.3.3")
-    implementation("io.ktor:ktor-client-content-negotiation:3.3.3")
+    implementation("io.ktor:ktor-client-core:3.4.0")
+    implementation("io.ktor:ktor-client-cio:3.4.0")
+    implementation("io.ktor:ktor-client-websockets:3.4.0")
+    implementation("io.ktor:ktor-client-content-negotiation:3.4.0")
 
     // JSON Serialization
-    implementation("io.ktor:ktor-serialization-kotlinx-json:3.3.3")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.4.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
 
     // JWT for Supabase token verification
@@ -48,7 +48,7 @@ dependencies {
     implementation("com.zaxxer:HikariCP:7.0.2")
 
     // Testing
-    testImplementation("io.ktor:ktor-server-test-host:3.3.3")
+    testImplementation("io.ktor:ktor-server-test-host:3.4.0")
     testImplementation("org.jetbrains.kotlin:kotlin-test:2.3.0")
 }
 
