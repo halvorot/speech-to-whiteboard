@@ -31,7 +31,7 @@ dependencies {
 
     // JSON Serialization
     implementation("io.ktor:ktor-serialization-kotlinx-json:3.4.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.10.0")
 
     // JWT for Supabase token verification
     implementation("com.auth0:java-jwt:4.5.0")
