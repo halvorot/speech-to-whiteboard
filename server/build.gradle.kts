@@ -34,7 +34,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.10.0")
 
     // JWT for Supabase token verification
-    implementation("com.auth0:java-jwt:4.5.0")
+    implementation("com.auth0:java-jwt:4.5.1")
     implementation("com.auth0:jwks-rsa:0.23.0")
 
     // Logging
