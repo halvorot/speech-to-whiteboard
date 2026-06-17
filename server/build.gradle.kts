@@ -31,7 +31,7 @@ dependencies {
 
     // JSON Serialization
     implementation("io.ktor:ktor-serialization-kotlinx-json:3.5.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.10.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
 
     // JWT for Supabase token verification
     implementation("com.auth0:java-jwt:4.5.1")
@@ -41,7 +41,7 @@ dependencies {
     implementation("ch.qos.logback:logback-classic:1.5.34")
 
     // Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
 
     // Database
     implementation("org.postgresql:postgresql:42.7.11")
@@ -49,7 +49,7 @@ dependencies {
 
     // Testing
     testImplementation("io.ktor:ktor-server-test-host:3.5.0")
-    testImplementation("org.jetbrains.kotlin:kotlin-test:2.3.10")
+    testImplementation("org.jetbrains.kotlin:kotlin-test:2.4.0")
 }
 
 tasks.test {
