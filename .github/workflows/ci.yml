@@ -112,7 +112,7 @@ jobs:
 
       - name: Build and push client image
         if: matrix.name == 'client'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
@@ -128,7 +128,7 @@ jobs:
 
       - name: Build and push server image
         if: matrix.name == 'server'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
