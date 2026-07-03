@@ -10,6 +10,7 @@ dist/
 
 # Gradle
 .gradle/
+.gradle-cache/
 build/
 out/
 

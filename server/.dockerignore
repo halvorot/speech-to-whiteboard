@@ -1,9 +1,15 @@
 # Build output
 build
 .gradle
+.gradle-cache
 .kotlin
+.idea
+.vscode
 bin
 out
+tmp
+test-results
+*.log
 
 # Environment
 .env
@@ -13,8 +19,6 @@ out
 .env.production.local
 
 # IDE
-.vscode
-.idea
 *.iml
 *.ipr
 *.iws
@@ -26,12 +30,11 @@ out
 .DS_Store
 Thumbs.db
 
-# Testing
-test-results
-
 # Misc
-*.log
+.github
 .git
+.gitattributes
+.gitmodules
 .gitignore
 README.md
 Dockerfile

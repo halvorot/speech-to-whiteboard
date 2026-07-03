@@ -1,45 +1,31 @@
-# Stage 1: Build
-FROM node:22-alpine AS builder
+FROM node:22-alpine AS build
 
 WORKDIR /app
 
-# Copy package files for dependency caching
-COPY package*.json ./
+COPY package.json package-lock.json ./
 
-# Install dependencies
-RUN npm ci
+RUN npm ci --no-audit --no-fund
 
-# Copy source code
-COPY . .
-
-# Build args for Vite environment variables
 ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_PUBLISHABLE_KEY
 ARG VITE_WS_URL
 ARG VITE_TLDRAW_LICENSE_KEY
 
-# Set as environment variables for Vite build
 ENV VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
 ENV VITE_SUPABASE_PUBLISHABLE_KEY=${VITE_SUPABASE_PUBLISHABLE_KEY}
 ENV VITE_WS_URL=${VITE_WS_URL}
 ENV VITE_TLDRAW_LICENSE_KEY=${VITE_TLDRAW_LICENSE_KEY}
 
-# Build the application
+COPY . .
+
 RUN npm run build
 
-# Stage 2: Production
 FROM nginx:alpine
 
-# Copy built assets from builder
-COPY --from=builder /app/dist /usr/share/nginx/html
+COPY --from=build /app/dist /usr/share/nginx/html
 
-# Copy nginx configuration if needed
-# COPY nginx.conf /etc/nginx/nginx.conf
-
-# Expose port 80
 EXPOSE 80
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost/ || exit 1
 
