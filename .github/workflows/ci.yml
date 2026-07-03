@@ -108,7 +108,6 @@ jobs:
           images: ${{ matrix.image }}
           tags: |
             type=raw,value=latest
-            type=sha,format=short
             type=schedule,pattern={{date 'YYYYMMDD-HHmmss' tz='Europe/Oslo'}}
 
       - name: Build and push client image
