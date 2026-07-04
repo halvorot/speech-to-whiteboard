@@ -96,6 +96,9 @@ fun Application.module() {
         get("/health") {
             call.respond(HttpStatusCode.OK, mapOf("status" to "healthy"))
         }
+        head("/health") {
+          call.respond(HttpStatusCode.OK)
+        }
 
         webSocket("/ws") {
             // Extract and verify JWT token from query parameter
