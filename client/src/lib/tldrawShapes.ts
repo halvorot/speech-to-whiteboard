@@ -1,7 +1,7 @@
 import { type Editor, toRichText } from 'tldraw';
 import type { LayoutNode, LayoutEdge } from './graphLayout';
 import { getShapeId, getArrowId } from './graphLayout';
-import { getNodeColor } from './DiagramNodeShape';
+import { DIAGRAM_NODE_SHAPE, getNodeColor, isTLDefaultColorStyle } from './DiagramNodeShape';
 
 // Check if a line segment intersects with a rectangle
 function lineIntersectsRect(
@@ -203,7 +203,7 @@ export function renderLayout(editor: Editor, nodes: LayoutNode[], edges: LayoutE
   const shapesToDelete = existingShapes.filter((s) => {
     if (s.type === 'arrow') {
       return !newEdgeIds.has(s.id);
-    } else if (s.type === 'diagram-node' || s.type === 'text' || s.type === 'note' || s.type === 'frame') {
+    } else if (s.type === DIAGRAM_NODE_SHAPE || s.type === 'text' || s.type === 'note' || s.type === 'frame') {
       return !newNodeIds.has(s.id);
     }
     return false;
@@ -303,7 +303,7 @@ export function renderLayout(editor: Editor, nodes: LayoutNode[], edges: LayoutE
       // Handle sticky notes (native tldraw note shape)
       else if (node.type === 'note') {
         const text = node.description ? `${node.label}\n\n${node.description}` : node.label;
-        const noteColor = node.color || 'yellow';
+        const noteColor = isTLDefaultColorStyle(node.color) ? node.color : 'yellow';
         const existingShape = exists ? editor.getShape(shapeId) : null;
 
         if (exists && existingShape) {
@@ -344,7 +344,7 @@ export function renderLayout(editor: Editor, nodes: LayoutNode[], edges: LayoutE
           // Update existing node (including parentId for frame moves)
           editor.updateShape({
             id: shapeId,
-            type: 'diagram-node',
+            type: DIAGRAM_NODE_SHAPE,
             x: node.x,
             y: node.y,
             opacity: node.opacity ?? 1,
@@ -361,7 +361,7 @@ export function renderLayout(editor: Editor, nodes: LayoutNode[], edges: LayoutE
         } else {
           // Create new node
           editor.createShape({
-            type: 'diagram-node',
+            type: DIAGRAM_NODE_SHAPE,
             id: shapeId,
             x: node.x,
             y: node.y,

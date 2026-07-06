@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { type Editor, type TLDefaultColorStyle, type TLShapeId } from 'tldraw';
 import type { NodeType } from '../types/sketch';
-import type { DiagramNodeShape } from '../lib/DiagramNodeShape';
+import { DIAGRAM_NODE_SHAPE, type DiagramNodeShape } from '../lib/DiagramNodeShape';
 import { MobileBottomSheet } from './MobileBottomSheet';
 
 const ALL_NODE_TYPES: { type: NodeType; label: string; category: string }[] = [
@@ -122,7 +122,7 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
   useEffect(() => {
     const updateSelection = () => {
       const selectedShapes = editor.getSelectedShapes();
-      const diagramNodes = selectedShapes.filter((s) => s.type === 'diagram-node') as DiagramNodeShape[];
+      const diagramNodes = selectedShapes.filter((s) => s.type === DIAGRAM_NODE_SHAPE) as DiagramNodeShape[];
 
       // Update selected node ID and props
       if (diagramNodes.length === 1) {
@@ -185,7 +185,7 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
   const handleTypeChange = (newType: NodeType) => {
     editor.updateShape({
       id: selectedNodeId,
-      type: 'diagram-node',
+      type: DIAGRAM_NODE_SHAPE,
       props: {
         nodeType: newType,
       },
@@ -195,7 +195,7 @@ export const DiagramNodeToolbar = ({ editor }: DiagramNodeToolbarProps) => {
   const handleColorChange = (newColor: TLDefaultColorStyle) => {
     editor.updateShape({
       id: selectedNodeId,
-      type: 'diagram-node',
+      type: DIAGRAM_NODE_SHAPE,
       props: {
         color: newColor,
       },

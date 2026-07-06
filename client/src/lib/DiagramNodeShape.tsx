@@ -2,12 +2,29 @@ import {
   BaseBoxShapeUtil,
   HTMLContainer,
   Rectangle2d,
-  type TLBaseShape,
   type TLDefaultColorStyle,
   type TLResizeInfo,
+  type TLShape,
 } from 'tldraw';
 import { useEffect, useRef, useState } from 'react';
 import type { NodeType } from '../types/sketch';
+
+export const DIAGRAM_NODE_SHAPE = 'diagram-node';
+
+export interface DiagramNodeShapeProps {
+  w: number;
+  h: number;
+  color: TLDefaultColorStyle;
+  nodeType: NodeType;
+  label: string;
+  description: string;
+}
+
+declare module 'tldraw' {
+  interface TLGlobalShapePropsMap {
+    [DIAGRAM_NODE_SHAPE]: DiagramNodeShapeProps;
+  }
+}
 
 // Icon SVG library
 const ICONS: Record<NodeType, string> = {
@@ -80,22 +97,16 @@ function getColorHex(colorStyle: TLDefaultColorStyle): string {
   return COLOR_HEX_MAP[colorStyle] || COLOR_HEX_MAP.grey;
 }
 
+export function isTLDefaultColorStyle(color: string | undefined): color is TLDefaultColorStyle {
+  return color !== undefined && color in COLOR_HEX_MAP;
+}
+
 // Shape type definition
-export type DiagramNodeShape = TLBaseShape<
-  'diagram-node',
-  {
-    w: number;
-    h: number;
-    color: TLDefaultColorStyle;
-    nodeType: NodeType;
-    label: string;
-    description: string;
-  }
->;
+export type DiagramNodeShape = TLShape<typeof DIAGRAM_NODE_SHAPE>;
 
 // Shape util class
 export class DiagramNodeUtil extends BaseBoxShapeUtil<DiagramNodeShape> {
-  static override type = 'diagram-node' as const;
+  static override type = DIAGRAM_NODE_SHAPE;
 
   getDefaultProps(): DiagramNodeShape['props'] {
     return {
@@ -168,7 +179,7 @@ export class DiagramNodeUtil extends BaseBoxShapeUtil<DiagramNodeShape> {
     const saveChanges = () => {
       this.editor.updateShape({
         id: shape.id,
-        type: 'diagram-node',
+        type: DIAGRAM_NODE_SHAPE,
         props: {
           label: editingLabel || 'Node',
           description: editingDescription,
@@ -318,8 +329,10 @@ export class DiagramNodeUtil extends BaseBoxShapeUtil<DiagramNodeShape> {
     );
   }
 
-  indicator(shape: DiagramNodeShape) {
-    return <rect width={shape.props.w} height={shape.props.h} />;
+  getIndicatorPath(shape: DiagramNodeShape): Path2D {
+    const path = new Path2D();
+    path.rect(0, 0, shape.props.w, shape.props.h);
+    return path;
   }
 
   override onResize = (_shape: DiagramNodeShape, info: TLResizeInfo<DiagramNodeShape>) => {
