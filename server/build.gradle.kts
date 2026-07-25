@@ -38,7 +38,7 @@ dependencies {
     implementation("com.auth0:jwks-rsa:0.24.1")
 
     // Logging
-    implementation("ch.qos.logback:logback-classic:1.5.37")
+    implementation("ch.qos.logback:logback-classic:1.6.0")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
