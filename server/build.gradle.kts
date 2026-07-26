@@ -1,6 +1,6 @@
 plugins {
-    kotlin("jvm") version "2.4.10"
-    kotlin("plugin.serialization") version "2.4.10"
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
     application
 }
 
@@ -11,45 +11,41 @@ application {
     mainClass.set("com.voiceboard.ApplicationKt")
 }
 
-repositories {
-    mavenCentral()
-}
-
 dependencies {
     // Ktor Server
-    implementation("io.ktor:ktor-server-core:3.5.1")
-    implementation("io.ktor:ktor-server-netty:3.5.1")
-    implementation("io.ktor:ktor-server-websockets:3.5.1")
-    implementation("io.ktor:ktor-server-content-negotiation:3.5.1")
-    implementation("io.ktor:ktor-server-cors:3.5.1")
+    implementation(libs.ktor.server.core)
+    implementation(libs.ktor.server.netty)
+    implementation(libs.ktor.server.websockets)
+    implementation(libs.ktor.server.content.negotiation)
+    implementation(libs.ktor.server.cors)
 
     // Ktor Client (for Deepgram API)
-    implementation("io.ktor:ktor-client-core:3.5.1")
-    implementation("io.ktor:ktor-client-cio:3.5.1")
-    implementation("io.ktor:ktor-client-websockets:3.5.1")
-    implementation("io.ktor:ktor-client-content-negotiation:3.5.1")
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.cio)
+    implementation(libs.ktor.client.websockets)
+    implementation(libs.ktor.client.content.negotiation)
 
     // JSON Serialization
-    implementation("io.ktor:ktor-serialization-kotlinx-json:3.5.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+    implementation(libs.ktor.serialization.kotlinx.json)
+    implementation(libs.kotlinx.serialization.json)
 
     // JWT for Supabase token verification
-    implementation("com.auth0:java-jwt:4.6.0")
-    implementation("com.auth0:jwks-rsa:0.24.1")
+    implementation(libs.java.jwt)
+    implementation(libs.jwks.rsa)
 
     // Logging
-    implementation("ch.qos.logback:logback-classic:1.6.0")
+    implementation(libs.logback.classic)
 
     // Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
+    implementation(libs.kotlinx.coroutines.core)
 
     // Database
-    implementation("org.postgresql:postgresql:42.7.13")
-    implementation("com.zaxxer:HikariCP:7.1.0")
+    implementation(libs.postgresql)
+    implementation(libs.hikari)
 
     // Testing
-    testImplementation("io.ktor:ktor-server-test-host:3.5.1")
-    testImplementation("org.jetbrains.kotlin:kotlin-test:2.4.10")
+    testImplementation(libs.ktor.server.test.host)
+    testImplementation(libs.kotlin.test)
 }
 
 tasks.test {
