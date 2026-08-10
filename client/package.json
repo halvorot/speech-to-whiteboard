@@ -13,11 +13,11 @@
     "test:coverage": "vitest --coverage"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.112.0",
+    "@supabase/supabase-js": "^2.112.2",
     "elkjs": "^0.12.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "tldraw": "^5.2.5"
+    "tldraw": "^5.3.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
