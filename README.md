@@ -55,7 +55,7 @@ See the full screen recording [here](docs/screen-recording-db-server-client-diag
 
 ## Prerequisites
 
-- Node.js 18+
+- Node.js 22.22.2+ (Vitest 5 requires 22.12+; the locked frontend tree requires 22.22.2)
 - Java 21
 - Gradle 8.12 (via Homebrew or wrapper)
 - Supabase account (for auth + PostgreSQL database)
