@@ -1,6 +1,6 @@
 [versions]
 kotlin = "2.4.21"
-ktor = "3.6.0"
+ktor = "3.6.1"
 serialization = "1.11.0"
 java-jwt = "4.6.2"
 jwks-rsa = "0.24.2"
